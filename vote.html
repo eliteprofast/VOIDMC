@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vote — VSMP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="bg" aria-hidden="true"></canvas>
+  <header class="nav">
+    <nav class="nav-inner">
+      <a href="index.html" class="logo">VS<span>MP</span></a>
+      <a href="index.html" class="mono small muted" style="letter-spacing:.2em;text-transform:uppercase">← Back to realm</a>
+    </nav>
+  </header>
+  <main>
+    <section class="section" style="padding-top:140px;min-height:100vh">
+      <div class="head">
+        <span class="side-label">VOTE LINKS</span>
+        <div>
+          <p class="kicker">Support the realm</p>
+          <h2>Vote for VSMP.</h2>
+          <p class="sub">Every vote pushes the realm higher on the server lists — more visibility, more clans, more war.</p>
+        </div>
+      </div>
+      <div class="grid three" id="vote-grid"></div>
+    </section>
+  </main>
+  <script src="config.js"></script>
+  <script src="bg.js"></script>
+  <script>
+    document.getElementById("vote-grid").innerHTML = (window.VSMP.voteSites || []).map((s) => `
+      <div class="card" style="display:flex;flex-direction:column">
+        <p class="label mono muted">Server list</p>
+        <h3 style="font-size:24px;font-weight:800;margin-top:8px">${s.name}</h3>
+        <p style="flex:1">${s.note}</p>
+        <a class="btn-primary inline" style="margin-top:24px;text-align:center;font-size:14px;padding:12px 20px" href="${s.url}" target="_blank" rel="noopener">VOTE ↗</a>
+      </div>`).join("") || '<p class="empty mono">No vote links yet. Add them to config.js.</p>';
+  </script>
+</body>
+</html>

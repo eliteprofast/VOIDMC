@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Admin — VSMP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="bg" aria-hidden="true"></canvas>
+  <header class="nav">
+    <nav class="nav-inner">
+      <a href="index.html" class="logo">VS<span>MP</span> <span class="mono small muted">ADMIN</span></a>
+      <button id="logout" class="ghost" type="button" hidden>LOG OUT</button>
+    </nav>
+  </header>
+  <main>
+    <section class="section" style="padding-top:120px;min-height:100vh">
+      <div id="admin-root"></div>
+    </section>
+  </main>
+  <script src="config.js"></script>
+  <script src="ui.js"></script>
+  <script src="bg.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

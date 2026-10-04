@@ -14,15 +14,22 @@
   <canvas id="bg" aria-hidden="true"></canvas>
 
   <header class="nav">
+    <div id="announce"></div>
     <nav class="nav-inner">
-      <a href="#top" class="logo">VS<span>MP</span></a>
+      <div class="logo-wrap">
+        <a href="#top" class="logo">VS<span>MP</span></a>
+        <a href="admin.html" id="admin-pill" class="admin-pill" hidden>ADMIN</a>
+      </div>
       <div class="nav-links">
         <a href="#players">Players</a>
         <a href="#gallery">Gallery</a>
+        <a href="vote.html">Vote</a>
         <a href="#allies">Allies</a>
         <a href="#store">Store</a>
         <a href="#about">Sanctuary</a>
-        <a href="#join">Apply</a>
+        <a href="apply.html">Apply</a>
+        <button id="cart-open" class="cart-btn" type="button" aria-label="Open cart">🛒<span id="cart-count" hidden>0</span></button>
+        <button id="logout" class="cart-btn" type="button" style="font:11px var(--mono);letter-spacing:.12em;color:var(--muted)">LOG OUT</button>
       </div>
     </nav>
   </header>
@@ -60,15 +67,26 @@
       </div>
     </section>
 
+  
+
     <section id="gallery" class="section">
       <div class="head">
         <span class="side-label">BUILD GALLERY</span>
         <div>
           <p class="kicker">Screenshots, clips &amp; YouTube</p>
           <h2>Moments from the realm.</h2>
-          <p class="sub">Add your best screenshots to the <code>gallery</code> list in <code>config.js</code>.</p>
+          <p class="sub">Share a screenshot or a YouTube link of your best moment. Staff review every submission before it appears.</p>
+          <button id="gallery-toggle" class="btn-primary inline" type="button" style="margin-top:24px;font-size:14px;padding:14px 24px">SHARE YOUR MOMENT</button>
         </div>
       </div>
+      <form id="gallery-form" class="card form-card" autocomplete="off">
+        <input name="title" maxlength="80" placeholder="Moment name" required>
+        <input name="player" maxlength="32" placeholder="Your in-game name" required>
+        <input name="url" type="url" maxlength="500" placeholder="Link to an image (imgur etc.) or a YouTube video" required>
+        <textarea name="caption" maxlength="300" rows="3" placeholder="What happened here? (optional)"></textarea>
+        <button type="submit" class="btn-primary inline" style="font-size:14px;padding:14px 24px">SUBMIT FOR REVIEW</button>
+      </form>
+      <p id="gallery-msg" class="mono small muted" style="margin-bottom:20px"></p>
       <div class="grid gallery" id="gallery-grid"></div>
     </section>
 
@@ -94,12 +112,13 @@
         </div>
       </div>
       <div class="grid three" id="ranks-grid"></div>
+      <div class="grid three" id="items-grid" style="margin-top:20px"></div>
       <p class="mono muted center small" style="margin-top:20px">Ranks are valid for 5 seasons only, not permanent.</p>
       <div class="grid two perks">
         <div class="card grad"><p class="mono perk-t">🔥 Rank Discount</p><p>Buying any rank instantly unlocks a 20% discount on any additional item you purchase.</p></div>
         <div class="card grad"><p class="mono perk-t">🔥 Discord Perks</p><p>Buying a rank unlocks the Private Discord Section with secret giveaways.</p></div>
       </div>
-      <p class="mono muted center" style="margin-top:48px"><span class="light">How to buy:</span> Open a ticket in <span class="white">#support</span> on Discord and ping staff to claim your items.</p>
+      <p class="mono muted center" style="margin-top:48px"><span class="light">How to buy:</span> Add items to your cart, place the order, then open a ticket in <span class="white">#support</span> on Discord with your order number.</p>
     </section>
 
     <section id="about" class="section">
@@ -127,10 +146,11 @@
         <div>
           <p class="kicker">Apply</p>
           <h2>Join the realm.</h2>
-          <p class="sub">Open a ticket on our Discord to apply to the whitelist.</p>
+          <p class="sub">Want to help run the realm? Fill in the staff application, or ask questions in our Discord.</p>
         </div>
       </div>
-      <a id="apply-btn" class="btn-primary inline" href="#" target="_blank" rel="noopener">APPLY ON DISCORD</a>
+      <a class="btn-primary inline" href="apply.html" style="margin-right:12px">STAFF APPLICATION</a>
+      <a id="apply-btn" class="btn-primary inline" href="#" target="_blank" rel="noopener">JOIN DISCORD</a>
     </section>
   </main>
 
@@ -149,8 +169,25 @@
 
   <div class="status-badge"><span class="dot" id="badge-dot"></span><span id="badge-text">CHECKING</span></div>
 
+  <aside id="cart" class="cart" aria-label="Cart">
+    <div class="cart-in">
+      <div class="cart-head"><h3>Your cart</h3><button id="cart-close" type="button" aria-label="Close cart">✕</button></div>
+      <div id="cart-list"></div>
+      <p class="mono" style="margin:16px 0">Total <span id="cart-total" class="white">$0.00</span></p>
+      <form id="cart-form" class="stack" autocomplete="off" hidden>
+        <input name="username" maxlength="16" placeholder="Minecraft username" required>
+        <input name="email" type="email" maxlength="100" placeholder="Email (optional)">
+        <button type="submit" class="btn-primary inline" style="font-size:14px;padding:14px">PLACE ORDER</button>
+      </form>
+      <p id="cart-msg" class="mono small muted" style="margin-top:16px;line-height:1.6"></p>
+    </div>
+  </aside>
+
   <script src="config.js"></script>
+  <script src="ui.js"></script>
   <script src="bg.js"></script>
   <script src="main.js"></script>
+  <script src="gallery.js"></script>
+  <script src="store.js"></script>
 </body>
 </html>

@@ -25,19 +25,19 @@
   // Allies
   $("allies-grid").innerHTML = C.allies.map((a) => `<a class="ally" href="${a.url}" target="_blank" rel="noopener"><div class="card"><p class="tag">${a.tag}</p><h3>${a.name}</h3><p class="url">${a.url}</p></div></a>`).join("");
 
-  // Ranks
-  $("ranks-grid").innerHTML = C.ranks.map((r) => `
-    <div class="card rank ${r.featured ? "featured" : ""}">
-      <div class="rank-top"><span class="rank-ico" style="background:${r.color}">♛</span><h3>${r.name}</h3>${r.featured ? '<span class="tag-top">Top</span>' : ""}</div>
-      <p class="price">$${r.price.toFixed(2)}</p>
-      <ul>${r.perks.map((p) => `<li>${p}</li>`).join("")}</ul>
-      <a href="${C.discord}" target="_blank" rel="noopener">Buy via ticket</a>
-    </div>`).join("");
+  // Admin bar: only admin emails get it
+  UI.api("/api/me").then((m) => { $("admin-pill").hidden = !m.admin; }).catch(() => {});
+  $("logout").addEventListener("click", async () => { try { await UI.api("/api/auth/logout", { body: {} }); } catch (e) {} location.href = "/login.html"; });
 
-  // Gallery
-  $("gallery-grid").innerHTML = C.gallery.length
-    ? C.gallery.map((g) => `<div class="card shot"><img src="${g.image}" alt="${g.title}"><div><h3>${g.title}</h3><p class="mono">${g.player || ""}</p></div></div>`).join("")
-    : '<p class="empty mono">No moments shared yet — be the first to post one.</p>';
+  // Announcement bar (set from the admin panel)
+  UI.api("/api/announcement").then((a) => {
+    if (!a.message) return;
+    const bar = UI.h(a.link_url ? "a" : "div", { class: "announce", href: a.link_url || null, target: a.link_url ? "_blank" : null, rel: a.link_url ? "noopener" : null },
+      a.tag ? UI.h("span", { class: "announce-tag" }, a.tag) : null,
+      UI.h("span", { class: "announce-msg" }, a.message),
+      a.link_url ? UI.h("span", { class: "announce-link" }, (a.link_label || "Open") + " ↗") : null);
+    $("announce").replaceChildren(bar);
+  }).catch(() => {});
 
   // Minecraft server status. Tries mcstatus.io first, then mcsrvstat.us.
   async function lookup() {
