@@ -27,7 +27,7 @@
 
   // Admin bar: only admin emails get it
   UI.api("/api/me").then((m) => { $("admin-pill").hidden = !m.admin; }).catch(() => {});
-  $("logout").addEventListener("click", async () => { try { await UI.api("/api/auth/logout", { body: {} }); } catch (e) {} location.href = "/login.html"; });
+  $("logout").addEventListener("click", async () => { try { await UI.api("/api/auth/logout", { body: {} }); } catch (e) {} location.href = "login.html"; });
 
   // Announcement bar (set from the admin panel)
   UI.api("/api/announcement").then((a) => {

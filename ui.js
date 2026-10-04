@@ -16,11 +16,11 @@ window.UI = (function () {
   async function api(url, opts) {
     opts = opts || {};
     let r;
-    try { r = await fetch(url, { method: opts.body ? "POST" : "GET", headers: { "Content-Type": "application/json" }, body: opts.body ? JSON.stringify(opts.body) : undefined, credentials: "same-origin" }); }
+    try { r = await fetch(url.replace(/^\/+/, ""), { method: opts.body ? "POST" : "GET", headers: { "Content-Type": "application/json" }, body: opts.body ? JSON.stringify(opts.body) : undefined, credentials: "same-origin" }); }
     catch (e) { throw new Error("Couldn't reach the server. Is it running?"); }
     let d = {};
     try { d = await r.json(); } catch (e) {}
-    if (r.status === 401 && !url.startsWith("/api/auth/") && url !== "/api/me" && !location.pathname.endsWith("login.html")) { location.href = "/login.html"; }
+    if (r.status === 401 && !url.startsWith("/api/auth/") && url !== "/api/me" && !location.pathname.endsWith("login.html")) { location.href = "login.html"; }
     if (!r.ok) { const err = new Error(d.error || "Something went wrong. Please try again."); err.status = r.status; throw err; }
     return d;
   }

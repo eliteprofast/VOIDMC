@@ -5,7 +5,7 @@
   let data = null, tab = "gallery", note = "";
 
   const call = (url, body) => api(url, { body });
-  logout.addEventListener("click", async () => { try { await api("/api/auth/logout", { body: {} }); } catch (e) {} location.href = "/login.html"; });
+  logout.addEventListener("click", async () => { try { await api("/api/auth/logout", { body: {} }); } catch (e) {} location.href = "login.html"; });
 
   async function start() {
     try { data = await call("/api/admin/data"); } catch (e) { return root.replaceChildren(h("div", { class: "card" }, e.message)); }

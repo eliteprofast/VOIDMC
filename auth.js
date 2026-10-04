@@ -1,7 +1,7 @@
 (function () {
   const { h, api } = UI;
   const root = document.getElementById("auth-root");
-  const go = () => { window.location.href = "/"; };
+  const go = () => { window.location.href = "index.html"; };
 
   // Already logged in? Skip the form.
   api("/api/me").then(go).catch(() => view("login"));
