@@ -1,7 +1,7 @@
 # Render blueprint for the VSMP site. Create it with: New > Blueprint > pick this repo.
 services:
   - type: web
-    name: vsmp
+    name: voidmc
     runtime: node
     plan: free            # free = data (accounts, gallery, orders) is wiped on every restart/deploy.
                           # To keep data: change to "starter" and uncomment the disk block below.
