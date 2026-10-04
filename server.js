@@ -23,7 +23,10 @@ const SAFE = ["index.html", "login.html", "vote.html", "apply.html", "admin.html
 const PUBLIC_FILES = ["login.html", "style.css", "config.js", "bg.js", "ui.js", "auth.js", "sanctuary.jpg"]; // everything else needs a login
 
 // ---------- database (data.json) ----------
-const DB_FILE = path.join(__dirname, "data.json");
+// DATA_DIR lets a host keep the data on a persistent disk (e.g. /var/data on Render). Defaults to this folder.
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
+const DB_FILE = path.join(DATA_DIR, "data.json");
 const DEFAULT_QUESTIONS = [
   { id: "q1", step: "About you", step_order: 1, label: "How old are you?", hint: "", type: "text", options: [], required: true, sort: 1 },
   { id: "q2", step: "About you", step_order: 1, label: "What is your timezone?", hint: "e.g. GMT+5", type: "text", options: [], required: true, sort: 2 },

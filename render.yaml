@@ -1,0 +1,23 @@
+# Render blueprint for the VSMP site. Create it with: New > Blueprint > pick this repo.
+services:
+  - type: web
+    name: vsmp
+    runtime: node
+    plan: free            # free = data (accounts, gallery, orders) is wiped on every restart/deploy.
+                          # To keep data: change to "starter" and uncomment the disk block below.
+    buildCommand: echo "no build step"
+    startCommand: node server.js
+    healthCheckPath: /login.html
+    envVars:
+      - key: OWNER_PASSWORD     # you type this in the Render dashboard, it is never stored in git
+        sync: false
+      - key: DISCORD_STAFF_WEBHOOK_URL   # optional: staff notifications
+        sync: false
+      - key: TRUST_PROXY
+        value: "1"
+      # - key: DATA_DIR
+      #   value: /var/data
+    # disk:
+    #   name: vsmp-data
+    #   mountPath: /var/data
+    #   sizeGB: 1

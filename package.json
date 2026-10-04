@@ -1,0 +1,13 @@
+{
+  "name": "vsmp-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VSMP Minecraft server website",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

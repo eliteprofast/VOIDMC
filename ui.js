@@ -19,7 +19,10 @@ window.UI = (function () {
     try { r = await fetch(url.replace(/^\/+/, ""), { method: opts.body ? "POST" : "GET", headers: { "Content-Type": "application/json" }, body: opts.body ? JSON.stringify(opts.body) : undefined, credentials: "same-origin" }); }
     catch (e) { throw new Error("Couldn't reach the server. Is it running?"); }
     let d = {};
-    try { d = await r.json(); } catch (e) {}
+    try { d = await r.json(); } catch (e) {
+      // Not JSON: this address is a plain file host (like GitHub Pages) with no VSMP server behind it.
+      if (!r.ok) { const err = new Error("This address has no VSMP server, so this feature only works on the real site, not on GitHub Pages."); err.status = r.status; throw err; }
+    }
     if (r.status === 401 && !url.startsWith("/api/auth/") && url !== "/api/me" && !location.pathname.endsWith("login.html")) { location.href = "login.html"; }
     if (!r.ok) { const err = new Error(d.error || "Something went wrong. Please try again."); err.status = r.status; throw err; }
     return d;
