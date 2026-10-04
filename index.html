@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VSMP</title>
+  <meta name="description" content="VSMP — a Minecraft clan wars realm. Recruit your clan, forge alliances, and wage war for control of the realm.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="bg" aria-hidden="true"></canvas>
+
+  <header class="nav">
+    <nav class="nav-inner">
+      <a href="#top" class="logo">VS<span>MP</span></a>
+      <div class="nav-links">
+        <a href="#players">Players</a>
+        <a href="#gallery">Gallery</a>
+        <a href="#allies">Allies</a>
+        <a href="#store">Store</a>
+        <a href="#about">Sanctuary</a>
+        <a href="#join">Apply</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section id="top" class="hero">
+      <p class="mono kicker-hero">桜 · Clan Wars Realm</p>
+      <h1>VSMP</h1>
+      <p class="lead">Recruit your clan, forge alliances, and wage war against rival factions for control of the realm.</p>
+      <div class="hero-actions">
+        <button id="copy-ip" class="btn-primary"><span id="copy-label">JOIN THE WAR</span></button>
+        <a id="discord-pill" class="pill" href="#" target="_blank" rel="noopener">
+          <span class="dot" id="hero-dot"></span>
+          <span class="light" id="discord-text">discord</span>
+          <span class="faint">·</span>
+          <span class="white" style="text-decoration:underline">open</span>
+        </a>
+      </div>
+    </section>
+
+    <section id="players" class="section">
+      <div class="head">
+        <span class="side-label">SPIRIT ROSTER</span>
+        <div>
+          <p class="kicker">Live from the server</p>
+          <p class="note">players online in our smp</p>
+          <h2>Who walks the garden.</h2>
+          <p class="sub">Updated every 30 seconds.</p>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="card"><p class="label">Online</p><p class="val" id="st-online">…</p></div>
+        <div class="card"><p class="label">Max players</p><p class="val" id="st-max">…</p></div>
+        <div class="card"><p class="label">Version</p><p class="val" id="st-version">…</p></div>
+      </div>
+    </section>
+
+    <section id="gallery" class="section">
+      <div class="head">
+        <span class="side-label">BUILD GALLERY</span>
+        <div>
+          <p class="kicker">Screenshots, clips &amp; YouTube</p>
+          <h2>Moments from the realm.</h2>
+          <p class="sub">Add your best screenshots to the <code>gallery</code> list in <code>config.js</code>.</p>
+        </div>
+      </div>
+      <div class="grid gallery" id="gallery-grid"></div>
+    </section>
+
+    <section id="allies" class="section">
+      <div class="head">
+        <span class="side-label">ALLIES</span>
+        <div>
+          <p class="kicker">Our Allied Servers</p>
+          <h2>Brothers in arms.</h2>
+          <p class="sub">VSMP fights alongside its allies. Join any of our partnered communities below.</p>
+        </div>
+      </div>
+      <div class="grid two" id="allies-grid"></div>
+    </section>
+
+    <section id="store" class="section">
+      <div class="head">
+        <span class="side-label">BAZAAR</span>
+        <div>
+          <p class="kicker">Official Store &amp; Ranks</p>
+          <h2>Support the server. Flex your dominance.</h2>
+          <p class="sub">Every purchase keeps VSMP running. Ranks are delivered in-game to your Minecraft username.</p>
+        </div>
+      </div>
+      <div class="grid three" id="ranks-grid"></div>
+      <p class="mono muted center small" style="margin-top:20px">Ranks are valid for 5 seasons only, not permanent.</p>
+      <div class="grid two perks">
+        <div class="card grad"><p class="mono perk-t">🔥 Rank Discount</p><p>Buying any rank instantly unlocks a 20% discount on any additional item you purchase.</p></div>
+        <div class="card grad"><p class="mono perk-t">🔥 Discord Perks</p><p>Buying a rank unlocks the Private Discord Section with secret giveaways.</p></div>
+      </div>
+      <p class="mono muted center" style="margin-top:48px"><span class="light">How to buy:</span> Open a ticket in <span class="white">#support</span> on Discord and ping staff to claim your items.</p>
+    </section>
+
+    <section id="about" class="section">
+      <div class="head">
+        <span class="side-label">WARFARE</span>
+        <div>
+          <p class="kicker">About VSMP</p>
+          <h2>Recruit. Raid. Rule.</h2>
+        </div>
+      </div>
+      <div class="about-grid">
+        <div class="card img-card"><img src="sanctuary.jpg" alt="Floating voxel pagodas above pink clouds"></div>
+        <div class="grid two">
+          <div class="card"><div class="ico">⚔</div><h3>Recruit your clan</h3><p>Gather loyal members and build a faction that fears no one.</p></div>
+          <div class="card"><div class="ico">🛡</div><h3>Defend your base</h3><p>Fortify your territory and hold your ground against raiders.</p></div>
+          <div class="card"><div class="ico">💰</div><h3>War economy</h3><p>Fund your war chest — trade loot, gear up, and outspend your rivals.</p></div>
+          <div class="card"><div class="ico">🏆</div><h3>Seasonal wars</h3><p>Clan tournaments, leaderboard seasons, and limited war cosmetics.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="join" class="section">
+      <div class="head">
+        <span class="side-label">RECRUITMENT</span>
+        <div>
+          <p class="kicker">Apply</p>
+          <h2>Join the realm.</h2>
+          <p class="sub">Open a ticket on our Discord to apply to the whitelist.</p>
+        </div>
+      </div>
+      <a id="apply-btn" class="btn-primary inline" href="#" target="_blank" rel="noopener">APPLY ON DISCORD</a>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div>
+        <p class="logo big">VS<span>MP</span></p>
+        <p class="muted" style="margin-top:12px;max-width:24rem">Where every block blooms. Join us at <span class="mono light" id="footer-ip"></span></p>
+      </div>
+      <nav class="footer-nav">
+        <a href="#players">Players</a><a href="#store">Store</a><a href="#about">Sanctuary</a><a href="#top">Top ↑</a>
+      </nav>
+    </div>
+    <p class="mono faint small" style="margin-top:56px">© <span id="year"></span> VSMP. Not affiliated with Mojang or Microsoft.</p>
+  </footer>
+
+  <div class="status-badge"><span class="dot" id="badge-dot"></span><span id="badge-text">CHECKING</span></div>
+
+  <script src="config.js"></script>
+  <script src="bg.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
