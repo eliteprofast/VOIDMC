@@ -307,3 +307,12 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; transition-delay: 0s !important; }
   .js .reveal, .js .reveal-kids > *, .js .hero > * { opacity: 1; transform: none; }
 }
+
+/* ---- image upload in the gallery form ---- */
+.upload { position: relative; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border: 1px dashed rgba(255,255,255,.25); background: #080A0F; padding: 12px; cursor: pointer; transition: border-color .4s ease-out, box-shadow .4s ease-out; }
+.upload:hover, .upload:focus-within { border-color: rgba(255,255,255,.6); box-shadow: 0 0 24px rgba(255,255,255,.1); }
+.upload input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.upload-btn { background: #fff; color: var(--bg); font-size: 11px; letter-spacing: .15em; padding: 9px 14px; }
+.upload-name { word-break: break-all; }
+.upload-preview { max-width: 100%; max-height: 180px; object-fit: contain; align-self: flex-start; border: 1px solid rgba(255,255,255,.12); }
+.upload-preview[hidden] { display: none; }

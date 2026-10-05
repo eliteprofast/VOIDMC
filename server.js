@@ -28,6 +28,26 @@ const PUBLIC_FILES = ["login.html", "style.css", "config.js", "bg.js", "ui.js", 
 const DATA_DIR = process.env.DATA_DIR || __dirname;
 try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
 const DB_FILE = path.join(DATA_DIR, "data.json");
+const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
+try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch (e) {}
+const UPLOAD_RE = /^uploads\/[a-f0-9]{16,32}\.(png|jpg|gif|webp)$/;
+const IMG_TYPES = { png: "image/png", jpg: "image/jpeg", gif: "image/gif", webp: "image/webp" };
+// real image files start with these bytes. We trust the bytes, never the file name or the type the browser claims.
+function sniffImage(b) {
+  if (b.length > 12 && b[0] === 0x89 && b.toString("latin1", 1, 4) === "PNG") return "png";
+  if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "jpg";
+  if (b.length > 6 && /^GIF8[79]a$/.test(b.toString("latin1", 0, 6))) return "gif";
+  if (b.length > 12 && b.toString("latin1", 0, 4) === "RIFF" && b.toString("latin1", 8, 12) === "WEBP") return "webp";
+  return "";
+}
+function readRaw(req, max) {
+  return new Promise((resolve, reject) => {
+    const chunks = []; let n = 0;
+    req.on("data", (c) => { n += c.length; if (n <= max) chunks.push(c); });
+    req.on("end", () => (n > max ? reject(new Error("too big")) : resolve(Buffer.concat(chunks))));
+    req.on("error", reject);
+  });
+}
 const DEFAULT_QUESTIONS = [
   { id: "q1", step: "About you", step_order: 1, label: "How old are you?", hint: "", type: "text", options: [], required: true, sort: 1 },
   { id: "q2", step: "About you", step_order: 1, label: "What is your timezone?", hint: "e.g. GMT+5", type: "text", options: [], required: true, sort: 2 },
@@ -135,6 +155,20 @@ const publicGallery = (g) => ({ id: g.id, title: g.title, kind: g.kind, url: g.u
 async function api(req, res, url) {
   const method = req.method;
   const ip = ipOf(req);
+
+  if (url === "/api/upload" && method === "POST") {
+    const who = sessionOf(req);
+    if (!who) return send(res, 401, { error: "Please log in." });
+    if (limited("up:" + who, 8, 3600000)) return send(res, 429, { error: "You've uploaded a few already. Please try again later." });
+    let buf;
+    try { buf = await readRaw(req, 5 * 1024 * 1024); } catch (e) { return send(res, 413, { error: "That image is too big. The limit is 5 MB." }); }
+    const ext = sniffImage(buf);
+    if (!ext) return send(res, 400, { error: "That file isn't a PNG, JPG, GIF or WebP image." });
+    const name = crypto.randomBytes(12).toString("hex") + "." + ext;
+    fs.writeFileSync(path.join(UPLOAD_DIR, name), buf);
+    return send(res, 200, { path: "uploads/" + name });
+  }
+
   let body = {};
   if (method === "POST") {
     try { body = await readJson(req); } catch (e) { return send(res, 400, { error: "Something was wrong with that request." }); }
@@ -184,14 +218,18 @@ async function api(req, res, url) {
 
   // gallery submit + vote
   if (url === "/api/gallery" && method === "POST") {
-    if (limited("gal:" + ip, 4, 3600000)) return send(res, 429, { error: "You've sent a few already. Please try again later." });
     const title = cleanLine(body.title, 80), player = cleanLine(body.player, 32), caption = clean(body.caption, 300);
-    const link = httpUrl(body.url);
-    if (!title || !player || !link) return send(res, 400, { error: "Please add a title, your in-game name and a link." });
-    const yt = youtubeId(link);
+    const image = typeof body.image === "string" && UPLOAD_RE.test(body.image) && fs.existsSync(path.join(UPLOAD_DIR, path.basename(body.image))) ? body.image : "";
+    const videoRaw = cleanLine(body.video, 500);
+    const yt = videoRaw ? youtubeId(httpUrl(videoRaw)) : "";
+    if (!title || !player) return send(res, 400, { error: "Please add a moment name and your in-game name." });
+    if (videoRaw && !yt) return send(res, 400, { error: "Please paste a YouTube link (youtube.com or youtu.be)." });
+    if (!image && !yt) return send(res, 400, { error: "Please upload an image or paste a video link." });
+    if (limited("gal:" + ip, 6, 3600000)) return send(res, 429, { error: "You've sent a few already. Please try again later." });
     const item = { id: newId(), title, player, caption, status: "pending", voters: [], created: Date.now() };
-    if (yt) { item.kind = "youtube"; item.url = yt; item.thumb = "https://i.ytimg.com/vi/" + yt + "/hqdefault.jpg"; }
-    else { item.kind = "image"; item.url = link; item.thumb = link; }
+    if (yt) { item.kind = "youtube"; item.url = yt; item.thumb = image || "https://i.ytimg.com/vi/" + yt + "/hqdefault.jpg"; }
+    else { item.kind = "image"; item.url = image; item.thumb = image; }
+    if (image) item.file = image;
     db.gallery.push(item); save();
     notify("🖼️ New gallery submission waiting for review: **" + title + "** by " + player);
     return send(res, 200, { ok: true });
@@ -276,7 +314,7 @@ async function api(req, res, url) {
       if (i < 0) return send(res, 404, { error: "Not found." });
       if (body.action === "approve") db.gallery[i].status = "approved";
       else if (body.action === "unapprove") db.gallery[i].status = "pending";
-      else if (body.action === "delete") db.gallery.splice(i, 1);
+      else if (body.action === "delete") { const gone = db.gallery.splice(i, 1)[0]; if (gone && gone.file && UPLOAD_RE.test(gone.file) && !db.gallery.some((x) => x.file === gone.file)) fs.unlink(path.join(UPLOAD_DIR, path.basename(gone.file)), () => {}); }
       save(); return send(res, 200, { ok: true });
     }
     if (url === "/api/admin/application" && method === "POST") {
@@ -316,6 +354,16 @@ async function api(req, res, url) {
 http.createServer((req, res) => {
   const url = req.url.split("?")[0];
   if (url.startsWith("/api/")) return api(req, res, url).catch((e) => { console.log("[api]", e.message); send(res, 500, { error: "Something went wrong on our side. Please try again." }); });
+  if (url.startsWith("/uploads/")) {
+    const name = url.slice(9);
+    if (!sessionOf(req)) { res.writeHead(401); return res.end("Please log in"); }
+    if (!UPLOAD_RE.test("uploads/" + name)) { res.writeHead(404); return res.end("Not found"); }
+    return fs.readFile(path.join(UPLOAD_DIR, name), (err, buf) => {
+      if (err) { res.writeHead(404); return res.end("Not found"); }
+      res.writeHead(200, { "Content-Type": IMG_TYPES[name.split(".").pop()], "Cache-Control": "private, max-age=86400", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'" });
+      res.end(buf);
+    });
+  }
   if (url === "/discord-callback") return chat.callback(req, res, { db, save, me: sessionOf(req) });
   const file = path.join(__dirname, url === "/" ? "index.html" : url);
   const base = path.basename(file);

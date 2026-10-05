@@ -56,13 +56,35 @@
   // submit form
   const form = document.getElementById("gallery-form");
   document.getElementById("gallery-toggle").addEventListener("click", () => form.classList.toggle("open"));
+  const file = document.getElementById("gallery-file"), fileName = document.getElementById("gallery-file-name"), preview = document.getElementById("gallery-preview");
+  const HINT = fileName.textContent;
+  file.addEventListener("change", () => {
+    const f = file.files[0];
+    if (preview.src) URL.revokeObjectURL(preview.src);
+    if (!f) { fileName.textContent = HINT; preview.hidden = true; preview.removeAttribute("src"); return; }
+    if (f.size > 5 * 1024 * 1024) { msg.textContent = "That image is too big. The limit is 5 MB."; file.value = ""; fileName.textContent = HINT; preview.hidden = true; return; }
+    fileName.textContent = f.name;
+    preview.src = URL.createObjectURL(f); preview.hidden = false; msg.textContent = "";
+  });
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const f = new FormData(form);
-    msg.textContent = "Sending…";
+    const pick = file.files[0];
+    const video = String(f.get("video") || "").trim();
+    if (!pick && !video) { msg.textContent = "Please upload an image or paste a video link."; return; }
+    msg.textContent = pick ? "Uploading…" : "Sending…";
     try {
-      await api("/api/gallery", { body: { title: f.get("title"), player: f.get("player"), url: f.get("url"), caption: f.get("caption") } });
-      form.reset(); form.classList.remove("open");
+      let image = "";
+      if (pick) {
+        let r;
+        try { r = await fetch("api/upload", { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: pick, credentials: "same-origin" }); }
+        catch (x) { throw new Error("Couldn't upload the image. Please try again."); }
+        let d = {}; try { d = await r.json(); } catch (x) {}
+        if (!r.ok) throw new Error(d.error || "Couldn't upload the image. Please try again.");
+        image = d.path;
+      }
+      await api("/api/gallery", { body: { title: f.get("title"), player: f.get("player"), image, video, caption: f.get("caption") } });
+      form.reset(); form.classList.remove("open"); fileName.textContent = HINT; preview.hidden = true; preview.removeAttribute("src");
       msg.textContent = "Thanks! Staff will review your moment before it appears.";
     } catch (err) { msg.textContent = err.message; }
   });
