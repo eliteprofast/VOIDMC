@@ -13,6 +13,10 @@ services:
         sync: false
       - key: DISCORD_BOT_TOKEN          # the bot token for the live chat (never put it in git)
         sync: false
+      - key: DISCORD_CLIENT_ID          # Discord application > OAuth2 > Client ID (for "Continue with Discord")
+        sync: false
+      - key: DISCORD_CLIENT_SECRET      # Discord application > OAuth2 > Client Secret (never put it in git)
+        sync: false
       - key: DISCORD_GUILD_ID
         value: "1545479832769536073"
       - key: DISCORD_STAFF_WEBHOOK_URL   # optional: staff notifications

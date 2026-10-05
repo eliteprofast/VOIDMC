@@ -236,3 +236,17 @@ input[type=checkbox] { width: auto; }
 .chat-send { background: #fff; color: var(--bg); border: 0; font: 800 12px var(--heading); letter-spacing: .1em; padding: 0 14px; cursor: pointer; }
 .chat-dialog { position: absolute; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; z-index: 5; }
 .chat-dialog-in { background: #0D1018; border: 1px solid rgba(255,255,255,.15); padding: 14px; display: flex; flex-direction: column; gap: 4px; max-height: 80%; overflow-y: auto; min-width: 12rem; }
+
+/* ---- Discord sign-in ---- */
+.chat-bodywrap { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.chat-bodywrap[hidden], .chat-gate[hidden], .chat-chip[hidden] { display: none; }
+.chat-gate { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; text-align: center; }
+.chat-gate-copy { font: 800 20px var(--heading); color: var(--text); }
+.chat-gate button:disabled { opacity: .4; cursor: not-allowed; }
+.chat-chip { display: flex; align-items: center; gap: 8px; margin-right: 6px; font-size: 12px; color: var(--text); }
+.chat-me { max-width: 7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-av.sm { width: 22px; height: 22px; }
+.msg-tag.badge { color: #fff; border-color: rgba(255,255,255,.5); }
+.dc-nav { display: inline-flex; align-items: center; gap: 8px; font: 11px var(--mono); letter-spacing: .1em; color: var(--text); }
+.dc-nav[hidden] { display: none; }
+.dc-av { width: 20px; height: 20px; border-radius: 50%; }

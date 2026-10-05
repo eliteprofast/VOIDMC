@@ -142,6 +142,8 @@ async function api(req, res, url) {
 
   // ----- auth (the only routes that don't need a login) -----
   if (url === "/api/auth/logout") {
+    const who = sessionOf(req), u = who && db.users.find((x) => x.email === who);
+    if (u) delete u.discord; // logging out clears the Discord link, so the next login starts from the Discord sign-in screen
     delete db.sessions[cookieOf(req, "vsmp_s")]; save();
     res.setHeader("Set-Cookie", "vsmp_s=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0");
     return send(res, 200, { ok: true });
@@ -173,7 +175,7 @@ async function api(req, res, url) {
   const me = sessionOf(req);
   if (!me) return send(res, 401, { error: "Please log in." });
   if (url === "/api/me") { const u = db.users.find((x) => x.email === me); return send(res, 200, { email: me, name: (u && u.name) || "", admin: isAdminEmail(me), owner: me === OWNER_EMAIL }); }
-  if (url.startsWith("/api/chat/")) { await chat.handle(url, { req, res, send, body, db, save, limited, me, isAdmin: isAdminEmail(me) }); return; }
+  if (url.startsWith("/api/chat/") || url.startsWith("/api/discord/")) { if (await chat.handle(url, { req, res, send, body, db, save, limited, me, isAdmin: isAdminEmail(me) })) return; }
 
   // public reads
   if (url === "/api/announcement" && method === "GET") return send(res, 200, db.announcement && db.announcement.active && db.announcement.message ? db.announcement : {});
@@ -314,6 +316,7 @@ async function api(req, res, url) {
 http.createServer((req, res) => {
   const url = req.url.split("?")[0];
   if (url.startsWith("/api/")) return api(req, res, url).catch((e) => { console.log("[api]", e.message); send(res, 500, { error: "Something went wrong on our side. Please try again." }); });
+  if (url === "/discord-callback") return chat.callback(req, res, { db, save, me: sessionOf(req) });
   const file = path.join(__dirname, url === "/" ? "index.html" : url);
   const base = path.basename(file);
   if (!SAFE.includes(base) || path.dirname(file) !== __dirname) { res.writeHead(404); return res.end("Not found"); }

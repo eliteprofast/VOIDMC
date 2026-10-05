@@ -29,6 +29,21 @@
   UI.api("/api/me").then((m) => { $("admin-pill").hidden = !m.admin; }).catch(() => {});
   $("logout").addEventListener("click", async () => { try { await UI.api("/api/auth/logout", { body: {} }); } catch (e) {} location.href = "login.html"; });
 
+  // One Discord identity for the whole site: sign-in button, or the connected avatar + name
+  UI.api("/api/discord/status").then((s) => {
+    const b = $("dc-nav");
+    if (!s.configured && !s.linked) return;
+    b.hidden = false;
+    if (s.linked) {
+      b.replaceChildren(s.avatar ? UI.h("img", { src: s.avatar, alt: "", class: "dc-av" }) : "", UI.h("span", {}, s.name));
+      b.title = "Connected to Discord as " + s.username + ". Click to disconnect.";
+      b.onclick = async () => { if (confirm("Disconnect your Discord account from this site?")) { await UI.api("/api/discord/unlink", { body: {} }); location.reload(); } };
+    } else {
+      b.textContent = "SIGN IN WITH DISCORD";
+      b.onclick = async () => { try { location.href = (await UI.api("/api/discord/start")).url; } catch (e) { alert(e.message); } };
+    }
+  }).catch(() => {});
+
   // Announcement bar (set from the admin panel)
   UI.api("/api/announcement").then((a) => {
     if (!a.message) return;

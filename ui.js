@@ -24,7 +24,7 @@ window.UI = (function () {
       if (!r.ok) { const err = new Error("This address has no VSMP server, so this feature only works on the real site, not on GitHub Pages."); err.status = r.status; throw err; }
     }
     if (r.status === 401 && !url.startsWith("/api/auth/") && url !== "/api/me" && !location.pathname.endsWith("login.html")) { location.href = "login.html"; }
-    if (!r.ok) { const err = new Error(d.error || "Something went wrong. Please try again."); err.status = r.status; throw err; }
+    if (!r.ok) { const err = new Error(d.error || "Something went wrong. Please try again."); err.status = r.status; err.data = d; throw err; }
     return d;
   }
   function clientId() {

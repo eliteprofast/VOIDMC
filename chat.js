@@ -7,7 +7,7 @@
 
   function mount(host, opts) {
     opts = opts || {};
-    const st = { groups: [], channel: null, channelName: "", voice: false, canPost: false, tab: "chat", name: "", online: 0, last: "", seen: new Set(), authors: new Map(), replyTo: null, picks: {}, timer: null, busy: false, polls: 0, open: false, pending: [] };
+    const st = { groups: [], channel: null, channelName: "", voice: false, canPost: false, tab: "chat", me: null, online: 0, last: "", seen: new Set(), authors: new Map(), replyTo: null, picks: {}, timer: null, busy: false, polls: 0, open: false, pending: [] };
 
     // ----- shell -----
     const dot = h("span", { class: "chat-dot" });
@@ -25,13 +25,14 @@
     const sendBtn = h("button", { class: "chat-send", type: "submit" }, "SEND");
     const note = h("div", { class: "chat-note mono small" });
     const form = h("form", { class: "chat-form", onsubmit: onSend }, input, sendBtn);
-    const nameIn = h("input", { class: "chat-input", maxlength: 24, placeholder: "Pick a chat name (2-24 characters)" });
-    const nameForm = h("form", { class: "chat-form", hidden: true, onsubmit: onName }, nameIn, h("button", { class: "chat-send", type: "submit" }, "OK"));
     const btnZoom = h("button", { type: "button", class: "chat-ic", "aria-label": "Enlarge", onclick: () => root.classList.toggle("zoom") }, "⤢");
     const btnTab = h("a", { class: "chat-ic", "aria-label": "Open in a new tab", target: "_blank", rel: "noopener", href: "chat.html" }, "↗");
     const btnClose = h("button", { type: "button", class: "chat-ic", "aria-label": "Close", onclick: () => api_.close() }, "✕");
-    const head = h("div", { class: "chat-head" }, dot, h("div", { class: "chat-ttl" }, title, chName), h("div", { class: "chat-acts" }, btnTab, opts.standalone ? null : btnZoom, opts.standalone ? null : btnClose));
-    const root = h("div", { class: "chat" + (opts.standalone ? " standalone" : ""), hidden: !opts.standalone }, head, h("div", { class: "chat-tabs" }, tabChat, tabMem), strip, list, memList, voiceNote, replyBar, mentionBox, note, form, nameForm);
+    const chip = h("div", { class: "chat-chip", hidden: true });
+    const head = h("div", { class: "chat-head" }, dot, h("div", { class: "chat-ttl" }, title, chName), chip, h("div", { class: "chat-acts" }, btnTab, opts.standalone ? null : btnZoom, opts.standalone ? null : btnClose));
+    const gate = h("div", { class: "chat-gate", hidden: true });
+    const body = h("div", { class: "chat-bodywrap" }, h("div", { class: "chat-tabs" }, tabChat, tabMem), strip, list, memList, voiceNote, replyBar, mentionBox, note, form);
+    const root = h("div", { class: "chat" + (opts.standalone ? " standalone" : ""), hidden: !opts.standalone }, head, gate, body);
     host.append(root);
 
     const say = (t) => { note.textContent = t || ""; };
@@ -41,29 +42,49 @@
     async function loadChannels() {
       try {
         const d = await api("/api/chat/channels");
-        st.groups = d.groups; st.name = d.name || ""; st.online = d.online;
+        st.groups = d.groups; st.me = d.me; st.online = d.online; showChip();
         tabMem.querySelector(".chat-online").textContent = d.online ? d.online + " online" : "";
         drawStrip(); drawComposer();
         const flat = d.groups.flatMap((g) => g.channels);
         const want = new URLSearchParams(location.search).get("channel");
         const first = flat.find((c) => c.id === want) || flat.find((c) => c.type === 0 || c.type === 5) || flat[0];
         if (first) pick(first.id); else list.replaceChildren(h("p", { class: "chat-empty" }, "No channels are available to view right now."));
-      } catch (e) { list.replaceChildren(h("p", { class: "chat-empty" }, e.message)); }
+      } catch (e) { if (e.data && e.data.needLink) return showGate(e.message); list.replaceChildren(h("p", { class: "chat-empty" }, e.message)); }
     }
     function drawStrip() {
       strip.replaceChildren(...st.groups.map((g) => h("div", { class: "chat-group" }, h("span", { class: "chat-glabel mono" }, g.name),
-        g.channels.map((c) => h("button", { type: "button", class: "chat-ch" + (c.id === st.channel ? " on" : ""), onclick: () => pick(c.id) }, (c.type === 2 || c.type === 13 ? "🔊 " : "# ") + c.name)))));
+        g.channels.map((c) => h("button", { type: "button", class: "chat-ch" + (c.id === st.channel ? " on" : ""), onclick: () => pick(c.id) }, (c.private ? "🔒 " : "") + (c.type === 2 || c.type === 13 ? "🔊 " : "# ") + c.name)))));
     }
     function drawComposer() {
-      const needName = !st.name;
-      nameForm.hidden = !needName;
-      form.hidden = needName || !st.canPost;
-      if (!needName && !st.canPost && st.channel) say("You can read this channel but can't post in it.");
+      form.hidden = !st.canPost || st.tab !== "chat";
+      if (st.channel && !st.canPost) say("You can read this channel but can't post in it.");
     }
-    async function onName(e) {
-      e.preventDefault();
-      try { const d = await api("/api/chat/name", { body: { name: nameIn.value } }); st.name = d.name; say(""); drawComposer(); input.focus(); } catch (x) { say(x.message); }
+
+    // ----- Discord sign-in: the only way into the chat -----
+    const WHY = { notmember: "That Discord account isn't in the VSMP server. Join the server first, then try again.", denied: "Discord sign-in was cancelled.", state: "That sign-in link expired. Please try again.", error: "Discord sign-in didn't work. Please try again.", taken: "That Discord account is already connected to another VSMP account." };
+    function showChip() {
+      if (!st.me) { chip.hidden = true; return; }
+      chip.hidden = false;
+      chip.replaceChildren(st.me.avatar ? h("img", { class: "msg-av sm", src: st.me.avatar, alt: "" }) : null, h("span", { class: "chat-me" }, st.me.name),
+        h("button", { type: "button", class: "linkbtn", onclick: switchAccount }, "not you?"));
     }
+    async function switchAccount() {
+      try { await api("/api/discord/unlink", { body: {} }); } catch (e) {}
+      st.me = null; st.groups = []; st.channel = null; showGate();
+    }
+    async function showGate(msg) {
+      clearInterval(st.timer); st.timer = null;
+      chip.hidden = true; body.hidden = true; gate.hidden = false;
+      const why = msg || WHY[new URLSearchParams(location.search).get("dc")] || "";
+      let configured = true;
+      try { configured = (await api("/api/discord/status")).configured; } catch (e) {}
+      const err = h("p", { class: "mono small", style: "color:var(--pink);min-height:1.2em;text-align:center" }, configured ? why : "Discord sign-in isn't set up on this server yet.");
+      const btn = h("button", { type: "button", class: "btn-primary inline", style: "font-size:14px;padding:14px 22px", disabled: !configured, onclick: async () => {
+        try { const d = await api("/api/discord/start"); location.href = d.url; } catch (e) { err.textContent = e.message; }
+      } }, "CONTINUE WITH DISCORD");
+      gate.replaceChildren(h("p", { class: "logo big", style: "text-align:center" }, "VS", h("span", {}, "MP")), h("p", { class: "chat-gate-copy" }, "Sign in with Discord to join the chat"), btn, err, h("p", { class: "mono small muted", style: "text-align:center" }, "The chat needs a Discord account."));
+    }
+    function hideGate() { gate.hidden = true; body.hidden = false; }
 
     // ----- channel + messages -----
     function pick(id) {
@@ -93,7 +114,7 @@
         if (full && !d.messages.length) list.replaceChildren(h("p", { class: "chat-empty" }, "No messages here yet. Say hello!"));
         if (added && wasBottom) list.scrollTop = list.scrollHeight;
         dot.classList.add("on");
-      } catch (e) { dot.classList.remove("on"); if (full && ch === st.channel) list.replaceChildren(h("p", { class: "chat-empty" }, e.message)); }
+      } catch (e) { dot.classList.remove("on"); if (e.data && e.data.needLink) { showGate(e.message); return; } if (full && ch === st.channel) list.replaceChildren(h("p", { class: "chat-empty" }, e.message)); }
       finally { st.busy = false; }
     }
     function addMsg(m, pending) {
@@ -115,7 +136,7 @@
       const el = h("div", { class: "msg" + (pending ? " pending" : ""), "data-id": m.id }, avatar, h("div", { class: "msg-body" },
         m.reply ? h("div", { class: "msg-quote" }, "↩ ", h("strong", {}, m.reply.author), " " + m.reply.text) : null,
         h("div", { class: "msg-head" }, h("span", { class: "msg-name", style: col ? "color:" + col : null }, m.author.name),
-          m.author.bot && !m.web ? h("span", { class: "msg-tag" }, "BOT") : null, m.web ? h("span", { class: "msg-tag" }, "WEB") : null,
+          m.author.bot ? h("span", { class: "msg-tag" }, "BOT") : null, (m.author.badges || []).map((b) => h("span", { class: "msg-tag badge" }, b)),
           h("span", { class: "msg-time mono" }, pending ? "sending…" : fmt(m.ts))),
         m.content ? h("div", { class: "msg-text" }, m.content) : null,
         (m.images || []).map((u) => h("img", { class: "msg-img", src: u, alt: "attachment", loading: "lazy" })),
@@ -145,13 +166,13 @@
       const shown = input.value.trim();
       input.value = ""; say("");
       const reply = st.replyTo; setReply(null);
-      const el = addMsg({ id: "p" + ++pid, author: { id: "", name: st.name, avatar: "", color: "", bot: false }, content: shown, images: [], embeds: [], reply: reply ? { author: reply.author.name, text: reply.content.slice(0, 120) } : null, ts: Date.now() }, true);
+      const el = addMsg({ id: "p" + ++pid, author: { id: "", name: st.me ? st.me.name : "", avatar: st.me ? st.me.avatar : "", color: "", bot: false, badges: [] }, content: shown, images: [], embeds: [], reply: reply ? { author: reply.author.name, text: reply.content.slice(0, 120) } : null, ts: Date.now() }, true);
       list.scrollTop = list.scrollHeight;
       try {
         const d = await api("/api/chat/send", { body: { channel: st.channel, text, mentions, replyTo: reply ? reply.id : undefined } });
         el.remove();
         if (d.message && !st.seen.has(d.message.id)) { d.message.content = shown; addMsg(d.message); list.scrollTop = list.scrollHeight; }
-      } catch (x) { el.remove(); say(x.message || "Your message could not be sent."); input.value = shown; }
+      } catch (x) { el.remove(); if (x.data && x.data.needLink) return showGate(x.message); say(x.message || "Your message could not be sent."); input.value = shown; }
       st.picks = {};
     }
     function setReply(m) {
@@ -199,7 +220,7 @@
       st.tab = t;
       tabChat.classList.toggle("on", t === "chat"); tabMem.classList.toggle("on", t === "members");
       list.hidden = t !== "chat"; memList.hidden = t !== "members";
-      form.hidden = t !== "chat" || !st.name || !st.canPost; nameForm.hidden = t !== "chat" || !!st.name;
+      form.hidden = t !== "chat" || !st.canPost;
       if (t === "members") loadMembers();
     }
 
@@ -209,8 +230,15 @@
       st.polls++;
       fetchMessages(st.polls % 10 === 0); // every ~20s a full refresh so deleted/edited messages settle
     }
+    async function ensureLinked() {
+      let s;
+      try { s = await api("/api/discord/status"); } catch (e) { return; }
+      if (!s.linked) { st.me = null; return showGate(); }
+      hideGate();
+      if (!st.groups.length) loadChannels(); else fetchMessages(false);
+    }
     const api_ = {
-      open() { st.open = true; root.hidden = false; if (!st.groups.length) loadChannels(); else fetchMessages(false); clearInterval(st.timer); st.timer = setInterval(tick, 2000); if (opts.onOpen) opts.onOpen(); },
+      async open() { st.open = true; root.hidden = false; await ensureLinked(); if (!st.open) return; clearInterval(st.timer); st.timer = setInterval(tick, 2000); if (opts.onOpen) opts.onOpen(); },
       close() { st.open = false; root.hidden = true; clearInterval(st.timer); if (opts.onClose) opts.onClose(); }
     };
     if (opts.standalone) api_.open();
