@@ -54,6 +54,20 @@
     $("announce").replaceChildren(bar);
   }).catch(() => {});
 
+  // numbers count up gently instead of hard-swapping
+  const shown = {};
+  function countTo(id, n) {
+    const el = $(id);
+    if (typeof n !== "number" || matchMedia("(prefers-reduced-motion: reduce)").matches) { el.textContent = n; shown[id] = n; return; }
+    const from = typeof shown[id] === "number" ? shown[id] : 0, t0 = performance.now();
+    shown[id] = n;
+    (function step(t) {
+      const k = Math.min(1, (t - t0) / 600), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = Math.round(from + (n - from) * e);
+      if (k < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+
   // Minecraft server status. Tries mcstatus.io first, then mcsrvstat.us.
   async function lookup() {
     try {
@@ -71,8 +85,8 @@
     $("hero-dot").classList.toggle("on", s.online);
     $("badge-dot").classList.toggle("on", s.online);
     $("badge-text").textContent = s.online ? s.now + " ONLINE" : "OFFLINE";
-    $("st-online").textContent = s.online ? s.now : "0";
-    $("st-max").textContent = s.online ? s.max : "—";
+    countTo("st-online", s.online ? s.now : 0);
+    if (s.online) countTo("st-max", s.max); else $("st-max").textContent = "—";
     $("st-version").textContent = s.online && s.version ? s.version : "—";
   }
   poll();

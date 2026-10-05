@@ -109,19 +109,20 @@
         if (full) { st.seen = new Set(); list.replaceChildren(); }
         const wasBottom = full || stick();
         let added = 0;
-        d.messages.forEach((m) => { if (st.seen.has(m.id)) return; addMsg(m); added++; });
+        d.messages.forEach((m) => { if (st.seen.has(m.id)) return; addMsg(m, false, full); added++; });
         if (d.last) st.last = d.last;
         if (full && !d.messages.length) list.replaceChildren(h("p", { class: "chat-empty" }, "No messages here yet. Say hello!"));
-        if (added && wasBottom) list.scrollTop = list.scrollHeight;
+        if (added && wasBottom) { if (full) list.scrollTop = list.scrollHeight; else list.scrollTo({ top: list.scrollHeight, behavior: "smooth" }); } // never yanks the view while someone reads older messages
         dot.classList.add("on");
       } catch (e) { dot.classList.remove("on"); if (e.data && e.data.needLink) { showGate(e.message); return; } if (full && ch === st.channel) list.replaceChildren(h("p", { class: "chat-empty" }, e.message)); }
       finally { st.busy = false; }
     }
-    function addMsg(m, pending) {
+    function addMsg(m, pending, quiet) {
       const empty = list.querySelector(".chat-empty"); if (empty) empty.remove();
       if (!pending) st.seen.add(m.id);
       if (m.author.id) st.authors.set(m.author.id, m.author.name);
       const el = msgEl(m, pending);
+      if (!pending && !quiet) el.classList.add("fresh");
       const firstPending = list.querySelector(".msg.pending");
       if (!pending && firstPending) list.insertBefore(el, firstPending); else list.append(el);
       return el;
@@ -171,7 +172,7 @@
       try {
         const d = await api("/api/chat/send", { body: { channel: st.channel, text, mentions, replyTo: reply ? reply.id : undefined } });
         el.remove();
-        if (d.message && !st.seen.has(d.message.id)) { d.message.content = shown; addMsg(d.message); list.scrollTop = list.scrollHeight; }
+        if (d.message && !st.seen.has(d.message.id)) { d.message.content = shown; addMsg(d.message, false, true); list.scrollTop = list.scrollHeight; }
       } catch (x) { el.remove(); if (x.data && x.data.needLink) return showGate(x.message); say(x.message || "Your message could not be sent."); input.value = shown; }
       st.picks = {};
     }

@@ -46,7 +46,12 @@
       h("div", { class: "shot-meta" }, h("div", {}, h("h3", {}, g.title), h("p", { class: "mono small" }, g.player)), voteBtn(g)))));
   }
 
-  api("/api/gallery").then((d) => { items = d; render(); }).catch((e) => { grid.replaceChildren(h("p", { class: "empty mono" }, e.message)); });
+  // load the gallery only when it is about to scroll into view
+  const loadGallery = () => api("/api/gallery").then((d) => { items = d; render(); }).catch((e) => { grid.replaceChildren(h("p", { class: "empty mono" }, e.message)); });
+  if ("IntersectionObserver" in window) {
+    const io = new IntersectionObserver((en) => { if (en.some((x) => x.isIntersecting)) { io.disconnect(); loadGallery(); } }, { rootMargin: "500px 0px" });
+    io.observe(grid);
+  } else loadGallery();
 
   // submit form
   const form = document.getElementById("gallery-form");

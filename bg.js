@@ -39,6 +39,9 @@
     ctx.globalAlpha = 1;
   }
 
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const small = () => window.innerWidth < 700; // phones: fewer particles, no ripples
+  let running = false, raf = 0;
   let W, H, S, wind = 0, lastScroll = window.scrollY, mouse = { x: null, y: null }, lastRipple = 0;
 
   function build(w, h) {
@@ -54,11 +57,11 @@
     return {
       far: farTrees, near: nearTrees, hills, ground,
       stars: Array.from({ length: 110 }, () => ({ x: rnd(0, w), y: rnd(0, h * 0.6), s: rnd(0.8, 2.4), p: rnd(0, 6), sp: rnd(0.6, 1.8) })),
-      petals: Array.from({ length: Math.min(160, Math.round(w / 9)) }, () => {
+      petals: Array.from({ length: small() ? Math.min(45, Math.round(w / 10)) : Math.min(160, Math.round(w / 9)) }, () => {
         const d = rnd(0.3, 1);
         return { x: rnd(0, w), y: rnd(0, h), s: rnd(2.5, 6) * (0.5 + d * 0.8), vy: rnd(0.25, 0.7) * (0.5 + d), vx: rnd(-0.25, 0.55), rot: rnd(0, 6), vr: rnd(-0.035, 0.035), c: pick(BLOOM), a: rnd(0.35, 0.85) * (0.5 + d * 0.5), phase: rnd(0, 6), depth: d, flutter: rnd(0.5, 1.4) };
       }),
-      fireflies: Array.from({ length: Math.min(34, Math.round(w / 45)) }, () => ({ x: rnd(0, w), y: rnd(h * 0.3, h * 0.92), r: rnd(1, 2.4), p: rnd(0, 6), sp: rnd(0.4, 1.1), vx: rnd(-0.18, 0.18), vy: rnd(-0.12, 0.12), c: Math.random() < 0.5 ? "#FFFFFF" : "#E0E0E0" })),
+      fireflies: Array.from({ length: small() ? 8 : Math.min(34, Math.round(w / 45)) }, () => ({ x: rnd(0, w), y: rnd(h * 0.3, h * 0.92), r: rnd(1, 2.4), p: rnd(0, 6), sp: rnd(0.4, 1.1), vx: rnd(-0.18, 0.18), vy: rnd(-0.12, 0.12), c: Math.random() < 0.5 ? "#FFFFFF" : "#E0E0E0" })),
       mist: Array.from({ length: 3 }, (_, i) => ({ y: h * (0.66 + i * 0.1), off: rnd(0, 6), sp: rnd(0.04, 0.12), a: 0.05 + i * 0.02, h: h * (0.16 + i * 0.04) })),
       ripples: []
     };
@@ -71,9 +74,11 @@
     canvas.style.width = W + "px"; canvas.style.height = H + "px";
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     S = build(W, H);
+    if (reduced) { running = false; start(); } // redraw the one still frame
   }
 
   function frame(t) {
+    if (document.hidden) { running = false; return; } // costs nothing while the tab is hidden
     const time = t / 1000;
     const dy = window.scrollY - lastScroll; lastScroll = window.scrollY;
     wind += (Math.max(-40, Math.min(40, dy)) * 0.12 - wind) * 0.06;
@@ -159,15 +164,19 @@
       }
       ctx.closePath(); ctx.stroke(); ctx.restore();
     });
-    requestAnimationFrame(frame);
+    if (reduced) { running = false; return; } // reduced motion: one still frame
+    raf = requestAnimationFrame(frame);
   }
+  function start() { if (!running) { running = true; raf = requestAnimationFrame(frame); } }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) start(); });
 
   window.addEventListener("resize", resize);
   window.addEventListener("mousemove", (e) => {
+    if (reduced || small()) return;
     mouse.x = e.clientX; mouse.y = e.clientY;
     const now = performance.now();
     if (now - lastRipple > 90) { lastRipple = now; S.ripples.push({ x: e.clientX, y: e.clientY, age: 0 }); if (S.ripples.length > 8) S.ripples.shift(); }
   });
   resize();
-  requestAnimationFrame(frame);
+  start();
 })();
