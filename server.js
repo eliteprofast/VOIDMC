@@ -12,7 +12,8 @@ try {
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
   });
 } catch (e) {}
-const chat = require("./chat-server"); // after .env is loaded, because it reads the bot token
+const chat = require("./chat-server");
+const mc = require("./mcstatus"); // after .env is loaded, because it reads the bot token
 const PORT = process.env.PORT || 3000;
 const OWNER_EMAIL = (process.env.OWNER_EMAIL || "ali.eliteprofast@gmail.com").trim().toLowerCase();
 const OWNER_PASSWORD = process.env.OWNER_PASSWORD || ""; // password of the owner account
@@ -149,6 +150,7 @@ function startSession(res, email) {
 function endSessions(email) { for (const t of Object.keys(db.sessions)) if (db.sessions[t].email === email) delete db.sessions[t]; save(); }
 const isAdminEmail = (e) => !!e && (e === OWNER_EMAIL || db.admins.includes(e));
 
+let mcCache = { at: 0, data: null };
 const publicGallery = (g) => ({ id: g.id, title: g.title, kind: g.kind, url: g.url, thumb: g.thumb, player: g.player, caption: g.caption, votes: g.voters.length });
 
 // ---------- API ----------
@@ -210,6 +212,24 @@ async function api(req, res, url) {
   if (!me) return send(res, 401, { error: "Please log in." });
   if (url === "/api/me") { const u = db.users.find((x) => x.email === me); return send(res, 200, { email: me, name: (u && u.name) || "", admin: isAdminEmail(me), owner: me === OWNER_EMAIL }); }
   if (url.startsWith("/api/chat/") || url.startsWith("/api/discord/")) { if (await chat.handle(url, { req, res, send, body, db, save, limited, me, isAdmin: isAdminEmail(me) })) return; }
+
+  // Minecraft server status, asked directly by this server and shared by everyone for a few seconds
+  if (url === "/api/mc-status" && method === "GET") {
+    const now = Date.now();
+    if (!mcCache.data || now - mcCache.at > 15000) {
+      const addr = String(process.env.MC_ADDRESS || loadConfig().serverIp || "").trim(); // MC_ADDRESS can override config.js
+      const m = addr.match(/^(.+?)(?::(\d{1,5}))?$/);
+      let r = m ? await mc.ping(m[1], Number(m[2]) || 25565, 5000) : { online: false, reason: "no-address" };
+      if (!r.online) { // a second opinion from a public service, in case this host can't reach the server
+        try {
+          const d = await (await fetch("https://api.mcstatus.io/v2/status/java/" + encodeURIComponent(addr), { signal: AbortSignal.timeout(6000) })).json();
+          if (d.online) r = { online: true, now: d.players.online, max: d.players.max, version: d.version && d.version.name_clean, motd: "", ms: null, via: "mcstatus.io" };
+        } catch (e) {}
+      }
+      mcCache = { at: now, data: Object.assign({ address: addr }, r) };
+    }
+    return send(res, 200, mcCache.data);
+  }
 
   // public reads
   if (url === "/api/announcement" && method === "GET") return send(res, 200, db.announcement && db.announcement.active && db.announcement.message ? db.announcement : {});

@@ -70,6 +70,10 @@
 
   // Minecraft server status. Tries mcstatus.io first, then mcsrvstat.us.
   async function lookup() {
+    try { // best: our own server asks the Minecraft server directly
+      const d = await UI.api("/api/mc-status");
+      if (typeof d.online === "boolean") { window.__mcWhy = d.online ? "" : (d.reason || ""); return d.online ? { online: true, now: d.now, max: d.max, version: d.version } : { online: false }; }
+    } catch (e) {}
     try {
       const d = await (await fetch("https://api.mcstatus.io/v2/status/java/" + encodeURIComponent(C.serverIp))).json();
       if (d.online) return { online: true, now: d.players.online, max: d.players.max, version: d.version && d.version.name_clean };
@@ -85,6 +89,8 @@
     $("hero-dot").classList.toggle("on", s.online);
     $("badge-dot").classList.toggle("on", s.online);
     $("badge-text").textContent = s.online ? s.now + " ONLINE" : "OFFLINE";
+    const WHY = { ECONNREFUSED: "The address answered, but nothing is listening on that port.", ETIMEDOUT: "The address did not answer in time.", timeout: "The server did not answer in time.", ENOTFOUND: "That address does not exist. Check the spelling.", EAI_AGAIN: "That address could not be looked up." };
+    $("badge-text").parentElement.title = s.online ? "" : (WHY[window.__mcWhy] || "The Minecraft server is not answering.");
     countTo("st-online", s.online ? s.now : 0);
     if (s.online) countTo("st-max", s.max); else $("st-max").textContent = "—";
     $("st-version").textContent = s.online && s.version ? s.version : "—";
