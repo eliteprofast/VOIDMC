@@ -16,7 +16,8 @@ async function dc(method, p, body) {
   const r = await fetch(API + p, {
     method,
     headers: { Authorization: "Bot " + TOKEN, "Content-Type": "application/json", "User-Agent": "DiscordBot (https://vsmp.local, 1.0)" },
-    body: body ? JSON.stringify(body) : undefined
+    body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(8000)
   });
   if (r.status === 204) return {};
   let j = {};
@@ -187,7 +188,7 @@ async function handle(url, ctx) {
   if (!TOKEN) { send(res, 503, { error: "Chat isn't set up yet." }); return true; }
   const q = new URL(req.url, "http://x").searchParams;
   const user = db.users.find((u) => u.email === ctx.me);
-  const fail = (e) => { console.log("[chat]", e.message, e.detail ? JSON.stringify(e.detail).slice(0, 200) : ""); return send(res, e.status === 429 ? 429 : 502, { error: friendly(e) }); };
+  const fail = (e) => { console.log("[chat]", url, e.name === "TimeoutError" ? "timed out talking to Discord" : e.message, e.detail ? JSON.stringify(e.detail).slice(0, 200) : ""); return send(res, e.status === 429 ? 429 : 502, { error: friendly(e) }); };
 
   try {
     if (url === "/api/chat/channels" && req.method === "GET") {
@@ -208,7 +209,7 @@ async function handle(url, ctx) {
       if (!ch) return send(res, 404, { error: "That channel isn't available." }), true;
       const after = /^\d{5,25}$/.test(q.get("after") || "") ? q.get("after") : "";
       const raw = await readMessages(ch.id, after);
-      const mc = await members(g);
+      const mc = await Promise.race([members(g), new Promise((r) => setTimeout(() => r({ list: [] }), 2000))]);
       const map = {}; (mc.list || []).forEach((m) => m.user && (map[m.user.id] = m));
       const out = raw.map((m) => shapeMessage(m, g, map, ctx)).filter(Boolean);
       return send(res, 200, { messages: out, last: raw.length ? raw[raw.length - 1].id : after }), true;

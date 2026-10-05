@@ -16,8 +16,8 @@ window.UI = (function () {
   async function api(url, opts) {
     opts = opts || {};
     let r;
-    try { r = await fetch(url.replace(/^\/+/, ""), { method: opts.body ? "POST" : "GET", headers: { "Content-Type": "application/json" }, body: opts.body ? JSON.stringify(opts.body) : undefined, credentials: "same-origin" }); }
-    catch (e) { throw new Error("Couldn't reach the server. Is it running?"); }
+    try { r = await fetch(url.replace(/^\/+/, ""), { method: opts.body ? "POST" : "GET", headers: { "Content-Type": "application/json" }, body: opts.body ? JSON.stringify(opts.body) : undefined, credentials: "same-origin", signal: AbortSignal.timeout(15000) }); }
+    catch (e) { throw new Error(e && e.name === "TimeoutError" ? "That took too long. Please try again." : "Couldn't reach the server. Is it running?"); }
     let d = {};
     try { d = await r.json(); } catch (e) {
       // Not JSON: this address is a plain file host (like GitHub Pages) with no VSMP server behind it.

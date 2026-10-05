@@ -70,7 +70,7 @@
       const c = st.groups.flatMap((g) => g.channels).find((x) => x.id === id);
       if (!c) return;
       st.channel = id; st.channelName = c.name; st.voice = c.type === 2 || c.type === 13; st.canPost = c.canPost;
-      st.last = ""; st.seen = new Set(); st.pending = []; st.replyTo = null; replyBar.hidden = true; st.polls = 0;
+      st.last = ""; st.seen = new Set(); st.pending = []; st.replyTo = null; replyBar.hidden = true; st.polls = 0; st.busy = false;
       chName.textContent = (st.voice ? "voice · " : "# ") + c.name;
       voiceNote.hidden = !st.voice;
       if (st.voice) voiceNote.replaceChildren("Voice calls happen in Discord. ", h("a", { href: C.discord || "#", target: "_blank", rel: "noopener", class: "white" }, "Join the call in Discord ↗"), " (this room's text chat works here).");
@@ -93,8 +93,8 @@
         if (full && !d.messages.length) list.replaceChildren(h("p", { class: "chat-empty" }, "No messages here yet. Say hello!"));
         if (added && wasBottom) list.scrollTop = list.scrollHeight;
         dot.classList.add("on");
-      } catch (e) { dot.classList.remove("on"); if (full) list.replaceChildren(h("p", { class: "chat-empty" }, e.message)); }
-      st.busy = false;
+      } catch (e) { dot.classList.remove("on"); if (full && ch === st.channel) list.replaceChildren(h("p", { class: "chat-empty" }, e.message)); }
+      finally { st.busy = false; }
     }
     function addMsg(m, pending) {
       const empty = list.querySelector(".chat-empty"); if (empty) empty.remove();
