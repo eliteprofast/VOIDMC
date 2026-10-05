@@ -11,6 +11,10 @@ services:
     envVars:
       - key: OWNER_PASSWORD     # you type this in the Render dashboard, it is never stored in git
         sync: false
+      - key: DISCORD_BOT_TOKEN          # the bot token for the live chat (never put it in git)
+        sync: false
+      - key: DISCORD_GUILD_ID
+        value: "1545479832769536073"
       - key: DISCORD_STAFF_WEBHOOK_URL   # optional: staff notifications
         sync: false
       - key: TRUST_PROXY

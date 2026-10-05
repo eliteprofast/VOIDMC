@@ -12,6 +12,7 @@ try {
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
   });
 } catch (e) {}
+const chat = require("./chat-server"); // after .env is loaded, because it reads the bot token
 const PORT = process.env.PORT || 3000;
 const OWNER_EMAIL = (process.env.OWNER_EMAIL || "ali.eliteprofast@gmail.com").trim().toLowerCase();
 const OWNER_PASSWORD = process.env.OWNER_PASSWORD || ""; // password of the owner account
@@ -19,7 +20,7 @@ const STAFF_WEBHOOK = process.env.DISCORD_STAFF_WEBHOOK_URL || "";
 const TRUST_PROXY = !!process.env.TRUST_PROXY;
 
 const TYPES = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".jpg": "image/jpeg", ".png": "image/png" };
-const SAFE = ["index.html", "login.html", "vote.html", "apply.html", "admin.html", "style.css", "config.js", "bg.js", "main.js", "ui.js", "auth.js", "gallery.js", "store.js", "apply.js", "admin.js", "sanctuary.jpg"];
+const SAFE = ["index.html", "login.html", "vote.html", "apply.html", "admin.html", "style.css", "config.js", "bg.js", "main.js", "ui.js", "auth.js", "chat.js", "chat.html", "gallery.js", "store.js", "apply.js", "admin.js", "sanctuary.jpg"];
 const PUBLIC_FILES = ["login.html", "style.css", "config.js", "bg.js", "ui.js", "auth.js", "sanctuary.jpg"]; // everything else needs a login
 
 // ---------- database (data.json) ----------
@@ -36,7 +37,7 @@ const DEFAULT_QUESTIONS = [
   { id: "q6", step: "Availability", step_order: 3, label: "I have read and understood the server rules", hint: "", type: "checkbox", options: [], required: true, sort: 6 },
   { id: "q7", step: "Availability", step_order: 3, label: "Link to a screenshot (optional)", hint: "Upload to imgur or similar and paste the link", type: "screenshot", options: [], required: false, sort: 7 }
 ];
-let db = { nextId: 1, gallery: [], applications: [], orders: [], announcement: null, questions: DEFAULT_QUESTIONS, users: [], admins: [], sessions: {} };
+let db = { nextId: 1, gallery: [], applications: [], orders: [], announcement: null, questions: DEFAULT_QUESTIONS, users: [], admins: [], sessions: {}, chatPosts: {} };
 try { db = Object.assign(db, JSON.parse(fs.readFileSync(DB_FILE, "utf8"))); } catch (e) {}
 let saveTimer = null;
 function save() {
@@ -171,7 +172,8 @@ async function api(req, res, url) {
   // everything below needs a logged-in member
   const me = sessionOf(req);
   if (!me) return send(res, 401, { error: "Please log in." });
-  if (url === "/api/me") return send(res, 200, { email: me, admin: isAdminEmail(me), owner: me === OWNER_EMAIL });
+  if (url === "/api/me") { const u = db.users.find((x) => x.email === me); return send(res, 200, { email: me, name: (u && u.name) || "", admin: isAdminEmail(me), owner: me === OWNER_EMAIL }); }
+  if (url.startsWith("/api/chat/")) { await chat.handle(url, { req, res, send, body, db, save, limited, me, isAdmin: isAdminEmail(me) }); return; }
 
   // public reads
   if (url === "/api/announcement" && method === "GET") return send(res, 200, db.announcement && db.announcement.active && db.announcement.message ? db.announcement : {});
