@@ -55,6 +55,7 @@
 
   // submit form
   const form = document.getElementById("gallery-form");
+  try { form.elements.player.value = localStorage.getItem("vsmp_player") || ""; } catch (e) {} // remember your in-game name
   document.getElementById("gallery-toggle").addEventListener("click", () => form.classList.toggle("open"));
   let LIMIT = 550 * 1024; // updated from the server below: Supabase allows bigger pictures than Upstash
   api("/api/upload-info").then((d) => { LIMIT = Math.min(Math.floor(d.max * 0.9), 4 * 1024 * 1024); }).catch(() => {});
@@ -89,6 +90,7 @@
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const f = new FormData(form);
+    try { localStorage.setItem("vsmp_player", String(f.get("player") || "").trim()); } catch (x) {}
     const pick = file.files[0];
     const video = String(f.get("video") || "").trim();
     if (!pick && !video) { msg.textContent = "Please upload an image or paste a video link."; return; }
@@ -105,7 +107,7 @@
         image = d.path;
       }
       await api("/api/gallery", { body: { title: f.get("title"), player: f.get("player"), image, video, caption: f.get("caption") } });
-      form.reset(); form.classList.remove("open"); fileName.textContent = HINT; preview.hidden = true; preview.removeAttribute("src");
+      form.reset(); try { form.elements.player.value = localStorage.getItem("vsmp_player") || ""; } catch (x) {} form.classList.remove("open"); fileName.textContent = HINT; preview.hidden = true; preview.removeAttribute("src");
       msg.textContent = "Thanks! Staff will review your moment before it appears.";
     } catch (err) { msg.textContent = err.message; }
   });
