@@ -346,3 +346,8 @@ a.msg-file:hover { border-color: #fff; }
 .pk:hover { border-color: rgba(255,255,255,.4); background: rgba(255,255,255,.08); } .pk .emo { width: 26px; height: 26px; vertical-align: 0; }
 .pk-label { width: 100%; font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin: 8px 0 2px; }
 video.msg-img { background: #000; }
+
+/* ---- toast: a short message that appears where you are looking ---- */
+.toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 12px); z-index: 120; background: #0D1018; border: 1px solid rgba(255,255,255,.4); color: #fff; font: 12px var(--mono); letter-spacing: .08em; padding: 12px 18px; box-shadow: 0 0 30px rgba(255,255,255,.15); opacity: 0; pointer-events: none; transition: opacity .4s ease-out, transform .4s ease-out; max-width: 90vw; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.bad { border-color: var(--pink); color: var(--pink); }

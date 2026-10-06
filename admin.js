@@ -14,8 +14,19 @@
     draw();
   }
 
+  let toastTimer = null;
+  function toast(msg, bad) {
+    if (!msg) return;
+    let t = document.getElementById("toast");
+    if (!t) { t = document.createElement("div"); t.id = "toast"; t.setAttribute("role", "status"); document.body.append(t); }
+    t.textContent = msg; t.className = "toast show" + (bad ? " bad" : "");
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.className = "toast"), 3500);
+  }
   async function act(url, body, okMsg) {
-    try { await call(url, body); note = okMsg || ""; await start(); } catch (e) { note = e.message; draw(); }
+    const y = window.scrollY;
+    try { await call(url, body); note = okMsg || ""; await start(); toast(okMsg); }
+    catch (e) { note = e.message; draw(); toast(e.message, true); }
+    window.scrollTo(0, y);
   }
   const when = (t) => new Date(t).toLocaleString();
   const btn = (label, fn, cls) => h("button", { type: "button", class: "mini " + (cls || ""), onclick: fn }, label);
@@ -82,9 +93,18 @@
         h("div", { class: "row between" }, h("span", { class: "mono white" }, data.me), h("span", { class: "tag-top" }, "owner"))),
       ...(data.admins || []).map((a) => {
         const pb = permBoxes(all, a.perms);
+        const status = h("span", { class: "mono small", "aria-live": "polite" }, "");
+        const savebtn = btn("SAVE PERMISSIONS", async () => {
+          status.textContent = "Saving…"; savebtn.disabled = true;
+          try {
+            const d = await call("/api/admin/admins", { email: a.email, permissions: pb.get(), action: "perms" });
+            data.admins = d.admins; status.textContent = "Saved ✓"; status.style.color = "#57F287"; toast("Permissions saved for " + a.email + ".");
+          } catch (e) { status.textContent = e.message; status.style.color = "var(--pink)"; toast(e.message, true); }
+          savebtn.disabled = false;
+        }, "on");
         return h("div", { class: "card stack", style: "max-width:40rem" }, h("span", { class: "mono" }, a.email), ...pb.nodes,
           h("div", { class: "row" },
-            btn("SAVE PERMISSIONS", () => act("/api/admin/admins", { email: a.email, permissions: pb.get(), action: "perms" }, "Permissions saved for " + a.email + "."), "on"),
+            savebtn, status,
             btn("REMOVE ADMIN", () => confirm("Remove " + a.email + " as admin?") && act("/api/admin/admins", { email: a.email, action: "remove" }, "Removed."), "danger")));
       }),
       h("div", { class: "card stack", style: "max-width:40rem" }, h("h3", {}, "Add an admin"),
