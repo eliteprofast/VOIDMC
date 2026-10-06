@@ -21,7 +21,7 @@ const STAFF_WEBHOOK = process.env.DISCORD_STAFF_WEBHOOK_URL || "";
 const TRUST_PROXY = !!process.env.TRUST_PROXY;
 
 const TYPES = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".jpg": "image/jpeg", ".png": "image/png" };
-const SAFE = ["index.html", "login.html", "vote.html", "apply.html", "admin.html", "style.css", "config.js", "bg.js", "main.js", "ui.js", "auth.js", "chat.js", "chat.html", "reveal.js", "gallery.js", "store.js", "apply.js", "admin.js", "sanctuary.jpg"];
+const SAFE = ["index.html", "login.html", "vote.html", "apply.html", "admin.html", "style.css", "config.js", "bg.js", "main.js", "ui.js", "auth.js", "chat.js", "chatmd.js", "chat.html", "reveal.js", "gallery.js", "store.js", "apply.js", "admin.js", "sanctuary.jpg"];
 const PUBLIC_FILES = ["login.html", "style.css", "config.js", "bg.js", "ui.js", "auth.js", "sanctuary.jpg"]; // everything else needs a login
 
 // ---------- database (data.json) ----------
@@ -58,7 +58,7 @@ const DEFAULT_QUESTIONS = [
   { id: "q6", step: "Availability", step_order: 3, label: "I have read and understood the server rules", hint: "", type: "checkbox", options: [], required: true, sort: 6 },
   { id: "q7", step: "Availability", step_order: 3, label: "Link to a screenshot (optional)", hint: "Upload to imgur or similar and paste the link", type: "screenshot", options: [], required: false, sort: 7 }
 ];
-let db = { nextId: 1, gallery: [], applications: [], orders: [], announcement: null, questions: DEFAULT_QUESTIONS, users: [], admins: [], sessions: {}, chatPosts: {} };
+let db = { nextId: 1, gallery: [], applications: [], orders: [], announcement: null, questions: DEFAULT_QUESTIONS, users: [], admins: [], sessions: {}, chatPosts: {}, reactions: {} };
 try { db = Object.assign(db, JSON.parse(fs.readFileSync(DB_FILE, "utf8"))); } catch (e) {}
 let saveTimer = null;
 function save() {

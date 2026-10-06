@@ -316,3 +316,33 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
 .upload-name { word-break: break-all; }
 .upload-preview { max-width: 100%; max-height: 180px; object-fit: contain; align-self: flex-start; border: 1px solid rgba(255,255,255,.12); }
 .upload-preview[hidden] { display: none; }
+
+/* ---- chat: Discord-style extras ---- */
+.md-line { white-space: pre-wrap; word-break: break-word; } .md-line:empty { display: none; }
+.md-code { font-family: var(--mono); font-size: 12.5px; background: rgba(255,255,255,.08); padding: 1px 5px; }
+.md-pre { font-family: var(--mono); font-size: 12.5px; background: #080A0F; border: 1px solid rgba(255,255,255,.1); padding: 10px; margin: 4px 0; overflow-x: auto; white-space: pre; }
+.md-quote { border-left: 3px solid rgba(255,255,255,.25); padding-left: 10px; margin: 2px 0; color: var(--muted); }
+.md-link { color: #9fb7ff; text-decoration: underline; text-decoration-color: rgba(159,183,255,.4); word-break: break-all; }
+.md-spoiler { background: #1d2230; color: transparent; cursor: pointer; padding: 0 3px; transition: background .3s ease-out, color .3s ease-out; }
+.md-spoiler.open { background: rgba(255,255,255,.1); color: inherit; cursor: auto; }
+.emo { width: 22px; height: 22px; vertical-align: -5px; display: inline-block; }
+.msg-edited { font-size: 10px; color: var(--muted); }
+.msg-day { text-align: center; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin: 10px 0 4px; display: flex; align-items: center; gap: 10px; }
+.msg-day::before, .msg-day::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,.08); }
+.msg-sticker { width: 120px; height: 120px; object-fit: contain; display: block; margin-top: 4px; }
+.msg-file { display: inline-block; margin-top: 6px; font-size: 12px; color: var(--text); border: 1px solid rgba(255,255,255,.15); padding: 6px 10px; word-break: break-all; }
+a.msg-file:hover { border-color: #fff; }
+.msg-reacts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; } .msg-reacts:empty { display: none; }
+.react { display: inline-flex; align-items: center; gap: 5px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); color: var(--text); padding: 2px 8px; font-size: 14px; cursor: pointer; transition: border-color .3s ease-out, background-color .3s ease-out; }
+.react .mono { font-size: 11px; color: var(--muted); } .react .emo { width: 18px; height: 18px; vertical-align: 0; }
+.react:hover { border-color: rgba(255,255,255,.5); }
+.react.mine { border-color: rgba(255,255,255,.7); background: rgba(255,255,255,.14); } .react.mine .mono { color: #fff; }
+.msg-editbar { display: flex; gap: 6px; align-items: center; margin-top: 2px; } .msg-editbar .chat-input { padding: 6px 8px; }
+.chat-emoji { background: transparent; border: 1px solid rgba(255,255,255,.12); color: var(--text); width: 38px; cursor: pointer; font-size: 16px; flex: none; transition: border-color .3s ease-out; }
+.chat-emoji:hover { border-color: #fff; }
+.picker-in { max-width: min(22rem, 92%); }
+.chat-picker { display: flex; flex-wrap: wrap; gap: 2px; max-height: 15rem; overflow-y: auto; }
+.pk { width: 36px; height: 36px; background: transparent; border: 1px solid transparent; font-size: 20px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: border-color .2s ease-out, background-color .2s ease-out; }
+.pk:hover { border-color: rgba(255,255,255,.4); background: rgba(255,255,255,.08); } .pk .emo { width: 26px; height: 26px; vertical-align: 0; }
+.pk-label { width: 100%; font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin: 8px 0 2px; }
+video.msg-img { background: #000; }

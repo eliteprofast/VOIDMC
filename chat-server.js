@@ -12,7 +12,7 @@ const PUBLIC_URL = (process.env.PUBLIC_URL || "").replace(/\/+$/, "");
 const TRUST_PROXY = !!process.env.TRUST_PROXY;
 const ONLY = (process.env.CHAT_CHANNELS || "").split(",").map((s) => s.trim()).filter(Boolean); // optional allow-list of channel ids
 
-const BIT = { ADMIN: 1n << 3n, VIEW: 1n << 10n, SEND: 1n << 11n, MANAGE_MSGS: 1n << 13n, READ_HISTORY: 1n << 16n };
+const BIT = { REACT: 1n << 6n, ADMIN: 1n << 3n, VIEW: 1n << 10n, SEND: 1n << 11n, MANAGE_MSGS: 1n << 13n, READ_HISTORY: 1n << 16n };
 const ALL = (1n << 53n) - 1n;
 const CHAT_TYPES = [0, 5, 2, 13]; // text, announcement, voice, stage (voice and stage carry text chat too)
 const MEDIA_HOSTS = ["cdn.discordapp.com", "media.discordapp.net"];
@@ -145,7 +145,6 @@ function cleanText(text, m, g) {
     .replace(/<@!?(\d+)>/g, (_, id) => "@" + (names[id] || "someone"))
     .replace(/<@&(\d+)>/g, (_, id) => { const r = g.roles.find((x) => x.id === id); return "@" + (r ? r.name : "role"); })
     .replace(/<#(\d+)>/g, (_, id) => { const c = g.channels.find((x) => x.id === id); return "#" + (c ? c.name : "channel"); })
-    .replace(/<a?:(\w+):\d+>/g, ":$1:")
     .replace(/<t:\d+(?::\w)?>/g, "")
     .slice(0, 4000);
 }
@@ -163,13 +162,17 @@ function shapeEmbed(e) {
 function shapeMessage(m, g, memberMap, ctx) {
   if (![0, 19, 20].includes(m.type)) return null; // hide joins, pins, boosts and other system entries
   const embeds = (m.embeds || []).slice(0, 6).map(shapeEmbed);
-  const images = (m.attachments || []).filter((a) => /^image\//.test(a.content_type || "")).slice(0, 6).map((a) => proxy(a.proxy_url || a.url));
+  const atts = m.attachments || [];
+  const images = atts.filter((a) => /^image\//.test(a.content_type || "")).slice(0, 6).map((a) => proxy(a.proxy_url || a.url));
+  const videos = atts.filter((a) => /^video\//.test(a.content_type || "")).slice(0, 3).map((a) => proxy(a.proxy_url || a.url));
+  const files = atts.filter((a) => !/^(image|video)\//.test(a.content_type || "")).slice(0, 6).map((a) => ({ name: String(a.filename || "file").slice(0, 80), size: a.size || 0, url: /^https:\/\/(cdn|media)\.discordapp\.(com|net)\//.test(a.url || "") ? a.url : "" }));
+  const stickers = (m.sticker_items || []).slice(0, 3).map((s) => ({ name: String(s.name || "").slice(0, 40), url: s.format_type === 3 ? "" : proxy("https://media.discordapp.net/stickers/" + String(s.id).replace(/\D/g, "") + (s.format_type === 4 ? ".gif" : ".png") + "?size=160") }));
   let raw = m.content || "";
   const post = ctx.db.chatPosts[m.id];
   // messages sent by the bot on a member's behalf carry a "**Name**" first line; show them as that member
   if (post && raw.startsWith(`**${post.name}**\n`)) raw = raw.slice(post.name.length + 5);
   const content = cleanText(raw, m, g);
-  if (!content && !embeds.length && !images.length) return null;
+  if (!content && !embeds.length && !images.length && !videos.length && !files.length && !stickers.length) return null;
   let author;
   if (post) {
     author = { id: post.discordId, name: post.name, avatar: proxy(post.avatar), bot: false, color: post.color || "", badges: post.badges || [] };
@@ -185,9 +188,18 @@ function shapeMessage(m, g, memberMap, ctx) {
     if (rp && rtext.startsWith(`**${rp.name}**\n`)) rtext = rtext.slice(rp.name.length + 5);
     reply = { author: rp ? rp.name : rm.author ? rm.author.global_name || rm.author.username : "someone", text: cleanText(rtext, rm, g).slice(0, 120) };
   }
-  return { id: m.id, ts: m.timestamp, content, images, embeds, reply, author, canDelete: !!(ctx.isAdmin || (post && post.email === ctx.me)) };
+  // reactions: the bot places ONE reaction on behalf of all site members who picked that emoji, so count them as themselves
+  const mine = (ctx.db.reactions && ctx.db.reactions[m.id]) || {};
+  const reactions = (m.reactions || []).slice(0, 20).map((r) => {
+    const key = r.emoji.id ? r.emoji.name + ":" + r.emoji.id : r.emoji.name;
+    const site = mine[key] || [];
+    const botCounted = r.me && site.length ? 1 : 0;
+    return { emoji: { name: String(r.emoji.name || "").slice(0, 40), id: r.emoji.id || "", animated: !!r.emoji.animated }, count: Math.max(0, r.count - botCounted) + site.length, mine: !!(ctx.discordId && site.includes(ctx.discordId)) };
+  }).filter((r) => r.count > 0);
+  return { id: m.id, ts: m.timestamp, edited: !!m.edited_timestamp, content, images, videos, files, stickers, embeds, reply, reactions, author, canDelete: !!(ctx.isAdmin || (post && post.email === ctx.me)), canEdit: !!(post && post.email === ctx.me) };
 }
 
+let emojiCache = { at: 0, list: null };
 const small = new Map(); // short cache for message reads, shared by all viewers
 async function readMessages(channelId, after) {
   const key = channelId + ":" + (after || "");
@@ -316,7 +328,7 @@ async function handle(url, ctx) {
       const raw = await readMessages(ch.id, after);
       const mc = await Promise.race([members(g), new Promise((r) => setTimeout(() => r({ list: [] }), 2000))]);
       const map = {}; (mc.list || []).forEach((m) => m.user && (map[m.user.id] = m));
-      const out = raw.map((m) => shapeMessage(m, g, map, ctx)).filter(Boolean);
+      const out = raw.map((m) => shapeMessage(m, g, map, Object.assign({}, ctx, { discordId: d.id }))).filter(Boolean);
       return send(res, 200, { messages: out, last: raw.length ? raw[raw.length - 1].id : after }), true;
     }
 
@@ -387,6 +399,55 @@ async function handle(url, ctx) {
       return send(res, 200, { ok: true }), true;
     }
 
+    if (url === "/api/chat/emojis" && req.method === "GET") {
+      if (!emojiCache.list || Date.now() - emojiCache.at > 300000) {
+        try { const list = await dc("GET", `/guilds/${GUILD_ID}/emojis`); emojiCache = { at: Date.now(), list: list.filter((e) => e.available !== false).slice(0, 120).map((e) => ({ id: e.id, name: e.name, animated: !!e.animated, url: proxy(`https://cdn.discordapp.com/emojis/${e.id}.${e.animated ? "gif" : "webp"}?size=48`) })) }; }
+        catch (e) { emojiCache = { at: Date.now(), list: [] }; }
+      }
+      return send(res, 200, { emojis: emojiCache.list }), true;
+    }
+
+    if (url === "/api/chat/react" && req.method === "POST") {
+      if (limited("cr:" + ctx.me, 30, 60000)) return send(res, 429, { error: "You're reacting too fast." }), true;
+      const { g, ch } = await channelFor(body.channel, mem);
+      const mid = String(body.id || "");
+      const e = body.emoji || {};
+      const name = String(e.name || "").slice(0, 40), eid = /^\d{5,25}$/.test(String(e.id || "")) ? String(e.id) : "";
+      // a unicode emoji must not look like plain text; a custom one needs its id
+      if (!ch || !/^\d{5,25}$/.test(mid) || !name || (!eid && /^[\w\s]+$/.test(name))) return send(res, 400, { error: "That reaction can't be added." }), true;
+      if (!has(permsFor(g, ch, mem.id, mem.roles), BIT.REACT) || !has(botPerms(g, ch), BIT.REACT)) return send(res, 403, { error: "You can't react in this channel." }), true;
+      const key = eid ? name + ":" + eid : name;
+      const all = db.reactions[mid] || (db.reactions[mid] = {});
+      const list = all[key] || (all[key] = []);
+      const had = list.length > 0;
+      const idx = list.indexOf(d.id);
+      if (body.on && idx < 0) list.push(d.id); else if (!body.on && idx >= 0) list.splice(idx, 1);
+      const path = `/channels/${ch.id}/messages/${mid}/reactions/${encodeURIComponent(key)}/@me`;
+      if (list.length && !had) await dc("PUT", path).catch((x) => { list.length = 0; throw x; });
+      else if (!list.length && had) await dc("DELETE", path).catch(() => {});
+      if (!list.length) delete all[key];
+      if (!Object.keys(all).length) delete db.reactions[mid];
+      const ids = Object.keys(db.reactions); if (ids.length > 3000) ids.slice(0, ids.length - 2000).forEach((k) => delete db.reactions[k]);
+      ctx.save(); small.clear();
+      return send(res, 200, { ok: true }), true;
+    }
+
+    if (url === "/api/chat/edit" && req.method === "POST") {
+      if (limited("ce:" + ctx.me, 12, 60000)) return send(res, 429, { error: "You're editing too fast." }), true;
+      const { ch } = await channelFor(body.channel, mem);
+      const id = String(body.id || ""), post = db.chatPosts[id];
+      const text = String(body.text || "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").trim().slice(0, 1500);
+      if (!ch || !post || post.email !== ctx.me || post.channel !== ch.id) return send(res, 403, { error: "You can only edit your own messages." }), true;
+      if (!text) return send(res, 400, { error: "A message can't be empty." }), true;
+      const clean = text.replace(/<@&?!?\d+>/g, "");
+      if (post.hook) {
+        const r = await fetch(`${API}/webhooks/${post.hook}/messages/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, signal: AbortSignal.timeout(8000), body: JSON.stringify({ content: clean, allowed_mentions: { parse: [] } }) });
+        if (!r.ok) throw Object.assign(new Error("webhook edit " + r.status), { status: r.status });
+      } else await dc("PATCH", `/channels/${ch.id}/messages/${id}`, { content: `**${post.name}**\n${clean}`, allowed_mentions: { parse: [] } });
+      small.clear();
+      return send(res, 200, { ok: true }), true;
+    }
+
     if (url === "/api/chat/media" && req.method === "GET") {
       let u; try { u = new URL(q.get("u") || ""); } catch (e) { return send(res, 400, { error: "Bad link." }), true; }
       if (u.protocol !== "https:" || !MEDIA_HOSTS.includes(u.hostname)) return send(res, 400, { error: "Not allowed." }), true;
@@ -394,7 +455,7 @@ async function handle(url, ctx) {
       const type = r.headers.get("content-type") || "";
       if (!r.ok || !/^(image|video)\//.test(type)) return send(res, 404, { error: "Not found." }), true;
       const buf = Buffer.from(await r.arrayBuffer());
-      if (buf.length > 8 * 1024 * 1024) return send(res, 413, { error: "Too large." }), true;
+      if (buf.length > (type.startsWith("video/") ? 25 : 8) * 1024 * 1024) return send(res, 413, { error: "Too large." }), true;
       res.writeHead(200, { "Content-Type": type, "Cache-Control": "private, max-age=3600", "Content-Length": buf.length });
       return res.end(buf), true;
     }

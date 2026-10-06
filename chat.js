@@ -7,7 +7,7 @@
 
   function mount(host, opts) {
     opts = opts || {};
-    const st = { groups: [], channel: null, channelName: "", voice: false, canPost: false, tab: "chat", me: null, online: 0, last: "", seen: new Set(), authors: new Map(), replyTo: null, picks: {}, timer: null, busy: false, polls: 0, open: false, pending: [] };
+    const st = { groups: [], channel: null, channelName: "", voice: false, canPost: false, tab: "chat", me: null, online: 0, last: "", seen: new Set(), authors: new Map(), replyTo: null, picks: {}, timer: null, busy: false, polls: 0, open: false, pending: [], els: new Map(), emojis: null, lastDay: "" };
 
     // ----- shell -----
     const dot = h("span", { class: "chat-dot" });
@@ -24,7 +24,8 @@
     const input = h("input", { class: "chat-input", maxlength: 1500, placeholder: "Message…", autocomplete: "off", "aria-label": "Message" });
     const sendBtn = h("button", { class: "chat-send", type: "submit" }, "SEND");
     const note = h("div", { class: "chat-note mono small" });
-    const form = h("form", { class: "chat-form", onsubmit: onSend }, input, sendBtn);
+    const emojiBtn = h("button", { type: "button", class: "chat-emoji", "aria-label": "Emoji", title: "Emoji", onclick: () => openPicker(insertEmoji) }, "😊");
+    const form = h("form", { class: "chat-form", onsubmit: onSend }, emojiBtn, input, sendBtn);
     const btnZoom = h("button", { type: "button", class: "chat-ic", "aria-label": "Enlarge", onclick: () => root.classList.toggle("zoom") }, "⤢");
     const btnTab = h("a", { class: "chat-ic", "aria-label": "Open in a new tab", target: "_blank", rel: "noopener", href: "chat.html" }, "↗");
     const btnClose = h("button", { type: "button", class: "chat-ic", "aria-label": "Close", onclick: () => api_.close() }, "✕");
@@ -91,7 +92,7 @@
       const c = st.groups.flatMap((g) => g.channels).find((x) => x.id === id);
       if (!c) return;
       st.channel = id; st.channelName = c.name; st.voice = c.type === 2 || c.type === 13; st.canPost = c.canPost;
-      st.last = ""; st.seen = new Set(); st.pending = []; st.replyTo = null; replyBar.hidden = true; st.polls = 0; st.busy = false;
+      st.last = ""; st.seen = new Set(); st.els = new Map(); st.lastDay = ""; st.pending = []; st.replyTo = null; replyBar.hidden = true; st.polls = 0; st.busy = false;
       chName.textContent = (st.voice ? "voice · " : "# ") + c.name;
       voiceNote.hidden = !st.voice;
       if (st.voice) voiceNote.replaceChildren("Voice calls happen in Discord. ", h("a", { href: C.discord || "#", target: "_blank", rel: "noopener", class: "white" }, "Join the call in Discord ↗"), " (this room's text chat works here).");
@@ -106,7 +107,7 @@
       try {
         const d = await api("/api/chat/messages?channel=" + ch + (!full && st.last ? "&after=" + st.last : ""));
         if (ch !== st.channel) return;
-        if (full) { st.seen = new Set(); list.replaceChildren(); }
+        if (full) { st.seen = new Set(); st.els = new Map(); st.lastDay = ""; list.replaceChildren(); }
         const wasBottom = full || stick();
         let added = 0;
         d.messages.forEach((m) => { if (st.seen.has(m.id)) return; addMsg(m, false, full); added++; });
@@ -117,6 +118,13 @@
       } catch (e) { dot.classList.remove("on"); if (e.data && e.data.needLink) { showGate(e.message); return; } if (full && ch === st.channel) list.replaceChildren(h("p", { class: "chat-empty" }, e.message)); }
       finally { st.busy = false; }
     }
+    const sigOf = (m) => JSON.stringify([m.content, m.edited, m.reactions, m.files, m.images, m.videos, m.stickers]);
+    function dayLabel(ts) {
+      const d = new Date(ts), t = new Date(), y = new Date(Date.now() - 864e5);
+      if (d.toDateString() === t.toDateString()) return "Today";
+      if (d.toDateString() === y.toDateString()) return "Yesterday";
+      return d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+    }
     function addMsg(m, pending, quiet) {
       const empty = list.querySelector(".chat-empty"); if (empty) empty.remove();
       if (!pending) st.seen.add(m.id);
@@ -124,24 +132,40 @@
       const el = msgEl(m, pending);
       if (!pending && !quiet) el.classList.add("fresh");
       const firstPending = list.querySelector(".msg.pending");
-      if (!pending && firstPending) list.insertBefore(el, firstPending); else list.append(el);
+      const put = (node) => { if (!pending && firstPending) list.insertBefore(node, firstPending); else list.append(node); };
+      if (!pending && m.ts) { const day = new Date(m.ts).toDateString(); if (day !== st.lastDay) { st.lastDay = day; put(h("div", { class: "msg-day mono" }, dayLabel(m.ts))); } }
+      put(el);
+      if (!pending) st.els.set(m.id, { el, sig: sigOf(m) });
       return el;
+    }
+    const fmtSize = (n) => (n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB");
+    const emojiNode = (e) => (e.id ? h("img", { class: "emo", src: ChatMD.emojiSrc(e.id, e.animated), alt: ":" + e.name + ":" }) : h("span", {}, e.name));
+    function reactsEl(m) {
+      return h("div", { class: "msg-reacts" }, (m.reactions || []).map((r) => h("button", { type: "button", class: "react" + (r.mine ? " mine" : ""), title: r.emoji.id ? ":" + r.emoji.name + ":" : r.emoji.name, onclick: () => toggleReact(m, r.emoji, !r.mine) }, emojiNode(r.emoji), h("span", { class: "mono" }, String(r.count)))));
     }
     function msgEl(m, pending) {
       const col = colorOk(m.author.color);
       const avatar = m.author.avatar ? h("img", { class: "msg-av", src: m.author.avatar, alt: "", loading: "lazy" }) : h("span", { class: "msg-av ini" }, (m.author.name || "?").slice(0, 1).toUpperCase());
       const acts = pending ? null : h("div", { class: "msg-acts" },
+        h("button", { type: "button", title: "Add reaction", onclick: () => openPicker((emo) => toggleReact(m, emo, true)) }, "😀"),
         st.canPost ? h("button", { type: "button", title: "Reply", onclick: () => setReply(m) }, "↩") : null,
         h("button", { type: "button", title: "Forward", onclick: () => forward(m) }, "↪"),
+        m.canEdit ? h("button", { type: "button", title: "Edit", onclick: () => startEdit(m, el) }, "✎") : null,
         m.canDelete ? h("button", { type: "button", title: "Delete", onclick: () => del(m, el) }, "🗑") : null);
+      let text = null;
+      if (m.content) { text = h("div", { class: "msg-text" }); text.append(ChatMD.render(m.content)); if (m.edited) text.append(h("span", { class: "msg-edited mono" }, " (edited)")); }
       const el = h("div", { class: "msg" + (pending ? " pending" : ""), "data-id": m.id }, avatar, h("div", { class: "msg-body" },
         m.reply ? h("div", { class: "msg-quote" }, "↩ ", h("strong", {}, m.reply.author), " " + m.reply.text) : null,
         h("div", { class: "msg-head" }, h("span", { class: "msg-name", style: col ? "color:" + col : null }, m.author.name),
           m.author.bot ? h("span", { class: "msg-tag" }, "BOT") : null, (m.author.badges || []).map((b) => h("span", { class: "msg-tag badge" }, b)),
           h("span", { class: "msg-time mono" }, pending ? "sending…" : fmt(m.ts))),
-        m.content ? h("div", { class: "msg-text" }, m.content) : null,
+        text,
+        (m.stickers || []).map((s) => (s.url ? h("img", { class: "msg-sticker", src: s.url, alt: s.name, title: s.name, loading: "lazy" }) : h("span", { class: "mono small muted" }, "[sticker: " + s.name + "]"))),
         (m.images || []).map((u) => h("img", { class: "msg-img", src: u, alt: "attachment", loading: "lazy" })),
-        (m.embeds || []).map(embedEl)), acts);
+        (m.videos || []).map((u) => h("video", { class: "msg-img", src: u, controls: true, preload: "metadata" })),
+        (m.files || []).map((f) => h(f.url ? "a" : "span", { class: "msg-file mono", href: f.url || null, target: f.url ? "_blank" : null, rel: f.url ? "noopener noreferrer" : null }, "📎 " + f.name + " (" + fmtSize(f.size) + ")")),
+        (m.embeds || []).map(embedEl),
+        pending ? null : reactsEl(m)), acts);
       return el;
     }
     function embedEl(e) {
@@ -154,6 +178,76 @@
         e.image ? h("img", { class: "msg-img", src: e.image, alt: "", loading: "lazy" }) : null,
         e.thumbnail && !e.image ? h("img", { class: "msg-thumb", src: e.thumbnail, alt: "", loading: "lazy" }) : null,
         e.footer ? h("div", { class: "mono small muted" }, e.footer) : null);
+    }
+
+    // ----- reactions, emoji picker, editing, quiet sync -----
+    async function toggleReact(m, emo, on) {
+      const key = (e) => e.name + ":" + (e.id || "");
+      const list0 = JSON.stringify(m.reactions || []);
+      m.reactions = (m.reactions || []).map((r) => Object.assign({}, r));
+      let r = m.reactions.find((x) => key(x.emoji) === key(emo));
+      if (on && r && r.mine) return;
+      if (on) { if (r) { r.count++; r.mine = true; } else m.reactions.push({ emoji: { name: emo.name, id: emo.id || "", animated: !!emo.animated }, count: 1, mine: true }); }
+      else if (r) { r.count--; r.mine = false; m.reactions = m.reactions.filter((x) => x.count > 0); }
+      const redraw = () => { const row = list.querySelector('.msg[data-id="' + m.id + '"] .msg-reacts'); if (row) row.replaceWith(reactsEl(m)); const rec = st.els.get(m.id); if (rec) rec.sig = sigOf(m); };
+      redraw();
+      try { await api("/api/chat/react", { body: { channel: st.channel, id: m.id, emoji: { name: emo.name, id: emo.id || "" }, on } }); }
+      catch (x) { m.reactions = JSON.parse(list0); redraw(); say(x.message); }
+    }
+    async function loadEmojis() {
+      if (st.emojis) return st.emojis;
+      try { st.emojis = (await api("/api/chat/emojis")).emojis; } catch (e) { st.emojis = []; }
+      return st.emojis;
+    }
+    async function openPicker(onPick) {
+      const grid = h("div", { class: "chat-picker" });
+      const box = h("div", { class: "chat-dialog", onclick: (e) => { if (e.target === box) box.remove(); } }, h("div", { class: "chat-dialog-in picker-in" }, grid));
+      const choose = (emo) => { box.remove(); onPick(emo); };
+      ChatMD.QUICK.forEach((u) => grid.append(h("button", { type: "button", class: "pk", onclick: () => choose({ name: u, id: "" }) }, u)));
+      root.append(box);
+      const custom = await loadEmojis();
+      if (custom.length && box.isConnected) {
+        grid.append(h("div", { class: "pk-label mono" }, "Server emoji"));
+        custom.forEach((e) => grid.append(h("button", { type: "button", class: "pk", title: ":" + e.name + ":", onclick: () => choose({ name: e.name, id: e.id, animated: e.animated }) }, h("img", { class: "emo", src: e.url, alt: ":" + e.name + ":", loading: "lazy" }))));
+      }
+    }
+    function insertEmoji(emo) {
+      const token = emo.id ? "<" + (emo.animated ? "a" : "") + ":" + emo.name + ":" + emo.id + ">" : emo.name;
+      const a = input.selectionStart == null ? input.value.length : input.selectionStart, b = input.selectionEnd == null ? a : input.selectionEnd;
+      input.value = input.value.slice(0, a) + token + input.value.slice(b);
+      input.focus(); input.setSelectionRange(a + token.length, a + token.length);
+    }
+    function startEdit(m, el) {
+      const body = el.querySelector(".msg-body"), old = el.querySelector(".msg-text");
+      const box = h("input", { class: "chat-input", maxlength: 1500, value: m.content });
+      const bar = h("div", { class: "msg-editbar" }, box,
+        h("button", { type: "button", class: "mini on", onclick: save }, "SAVE"), h("button", { type: "button", class: "mini", onclick: cancel }, "CANCEL"));
+      if (old) old.replaceWith(bar); else body.append(bar);
+      box.focus();
+      box.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); save(); } if (e.key === "Escape") cancel(); });
+      function cancel() { const ne = msgEl(m); el.replaceWith(ne); st.els.set(m.id, { el: ne, sig: sigOf(m) }); }
+      async function save() {
+        const text = box.value.trim();
+        if (!text || text === m.content) return cancel();
+        try { await api("/api/chat/edit", { body: { channel: st.channel, id: m.id, text } }); m.content = text; m.edited = true; cancel(); } catch (x) { say(x.message); }
+      }
+    }
+    async function syncRecent() {
+      if (st.busy || !st.channel) return;
+      st.busy = true;
+      const ch = st.channel;
+      try {
+        const d = await api("/api/chat/messages?channel=" + ch);
+        if (ch !== st.channel) return;
+        const ids = new Set(d.messages.map((m) => m.id));
+        d.messages.forEach((m) => {
+          const rec = st.els.get(m.id), sig = sigOf(m);
+          if (rec && rec.sig !== sig) { const ne = msgEl(m); rec.el.replaceWith(ne); st.els.set(m.id, { el: ne, sig }); }
+        });
+        if (d.messages.length) { const min = BigInt(d.messages[0].id); st.els.forEach((rec, id) => { if (!ids.has(id) && /^\d+$/.test(id) && BigInt(id) >= min) { rec.el.remove(); st.els.delete(id); } }); }
+        dot.classList.add("on");
+      } catch (e) { if (e.data && e.data.needLink) showGate(e.message); }
+      finally { st.busy = false; }
     }
 
     // ----- sending (optimistic) -----
@@ -229,7 +323,7 @@
     function tick() {
       if (!st.open || document.visibilityState !== "visible" || st.tab !== "chat") return;
       st.polls++;
-      fetchMessages(st.polls % 10 === 0); // every ~20s a full refresh so deleted/edited messages settle
+      if (st.polls % 5 === 0) syncRecent(); else fetchMessages(false); // every ~10s, quietly update reactions, edits and deletions in place
     }
     async function ensureLinked() {
       let s;
