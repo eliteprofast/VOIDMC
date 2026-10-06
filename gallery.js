@@ -56,13 +56,32 @@
   // submit form
   const form = document.getElementById("gallery-form");
   document.getElementById("gallery-toggle").addEventListener("click", () => form.classList.toggle("open"));
+  const LIMIT = 550 * 1024;
+  async function shrink(f) {
+    if (f.size <= LIMIT) return f;
+    if (f.type === "image/gif") throw new Error("That GIF is too big. Please pick one under 0.5 MB, or a normal picture.");
+    let bmp;
+    try { bmp = await createImageBitmap(f); } catch (e) { throw new Error("Couldn't read that image. Try another one."); }
+    let scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    for (let round = 0; round < 6; round++) {
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(bmp.width * scale)); c.height = Math.max(1, Math.round(bmp.height * scale));
+      const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
+      for (const q of [0.85, 0.75, 0.65, 0.55]) {
+        const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", q));
+        if (blob && blob.size <= LIMIT) return blob;
+      }
+      scale *= 0.75;
+    }
+    throw new Error("Couldn't shrink that image enough. Try a smaller one.");
+  }
   const file = document.getElementById("gallery-file"), fileName = document.getElementById("gallery-file-name"), preview = document.getElementById("gallery-preview");
   const HINT = fileName.textContent;
   file.addEventListener("change", () => {
     const f = file.files[0];
     if (preview.src) URL.revokeObjectURL(preview.src);
     if (!f) { fileName.textContent = HINT; preview.hidden = true; preview.removeAttribute("src"); return; }
-    if (f.size > 5 * 1024 * 1024) { msg.textContent = "That image is too big. The limit is 5 MB."; file.value = ""; fileName.textContent = HINT; preview.hidden = true; return; }
+    if (f.size > 25 * 1024 * 1024) { msg.textContent = "That image is too big. The limit is 25 MB."; file.value = ""; fileName.textContent = HINT; preview.hidden = true; return; }
     fileName.textContent = f.name;
     preview.src = URL.createObjectURL(f); preview.hidden = false; msg.textContent = "";
   });
@@ -77,7 +96,8 @@
       let image = "";
       if (pick) {
         let r;
-        try { r = await fetch("api/upload", { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: pick, credentials: "same-origin" }); }
+        const toSend = await shrink(pick);
+        try { r = await fetch("api/upload", { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: toSend, credentials: "same-origin" }); }
         catch (x) { throw new Error("Couldn't upload the image. Please try again."); }
         let d = {}; try { d = await r.json(); } catch (x) {}
         if (!r.ok) throw new Error(d.error || "Couldn't upload the image. Please try again.");

@@ -13,7 +13,8 @@ try {
   });
 } catch (e) {}
 const chat = require("./chat-server");
-const mc = require("./mcstatus"); // after .env is loaded, because it reads the bot token
+const mc = require("./mcstatus");
+const remote = require("./remote"); // optional outside storage, so data survives restarts // after .env is loaded, because it reads the bot token
 const PORT = process.env.PORT || 3000;
 const OWNER_EMAIL = (process.env.OWNER_EMAIL || "ali.eliteprofast@gmail.com").trim().toLowerCase();
 const OWNER_PASSWORD = process.env.OWNER_PASSWORD || ""; // password of the owner account
@@ -63,7 +64,13 @@ try { db = Object.assign(db, JSON.parse(fs.readFileSync(DB_FILE, "utf8"))); } ca
 let saveTimer = null;
 function save() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => fs.writeFile(DB_FILE, JSON.stringify(db, null, 1), () => {}), 200);
+  saveTimer = setTimeout(() => {
+    const now = Date.now();
+    for (const t of Object.keys(db.sessions)) if (now - db.sessions[t].created > SESSION_MS) delete db.sessions[t];
+    const keys = Object.keys(db.chatPosts); if (keys.length > 1200) keys.slice(0, keys.length - 800).forEach((k) => delete db.chatPosts[k]); // keeps the saved copy small
+    fs.writeFile(DB_FILE, JSON.stringify(db, null, 1), () => {});
+    if (remote.enabled) remote.save(JSON.stringify(db));
+  }, 200);
 }
 const newId = () => db.nextId++;
 
@@ -168,10 +175,12 @@ async function api(req, res, url) {
     if (!who) return send(res, 401, { error: "Please log in." });
     if (limited("up:" + who, 8, 3600000)) return send(res, 429, { error: "You've uploaded a few already. Please try again later." });
     let buf;
-    try { buf = await readRaw(req, 5 * 1024 * 1024); } catch (e) { return send(res, 413, { error: "That image is too big. The limit is 5 MB." }); }
+    const cap = remote.enabled ? remote.MAX_IMAGE : 5 * 1024 * 1024;
+    try { buf = await readRaw(req, cap); } catch (e) { return send(res, 413, { error: remote.enabled ? "That image is too big (limit about 0.6 MB). Pictures are shrunk automatically; for a GIF please pick a smaller one." : "That image is too big. The limit is 5 MB." }); }
     const ext = sniffImage(buf);
     if (!ext) return send(res, 400, { error: "That file isn't a PNG, JPG, GIF or WebP image." });
     const name = crypto.randomBytes(12).toString("hex") + "." + ext;
+    if (remote.enabled) { try { await remote.putImage(name, buf); } catch (e) { console.log("[remote] image save failed:", e.message); return send(res, 502, { error: "Couldn't save the image right now. Please try again." }); } }
     fs.writeFileSync(path.join(UPLOAD_DIR, name), buf);
     return send(res, 200, { path: "uploads/" + name });
   }
@@ -243,7 +252,7 @@ async function api(req, res, url) {
   // gallery submit + vote
   if (url === "/api/gallery" && method === "POST") {
     const title = cleanLine(body.title, 80), player = cleanLine(body.player, 32), caption = clean(body.caption, 300);
-    const image = typeof body.image === "string" && UPLOAD_RE.test(body.image) && fs.existsSync(path.join(UPLOAD_DIR, path.basename(body.image))) ? body.image : "";
+    const image = typeof body.image === "string" && UPLOAD_RE.test(body.image) && (fs.existsSync(path.join(UPLOAD_DIR, path.basename(body.image))) || (remote.enabled && await remote.hasImage(path.basename(body.image)))) ? body.image : "";
     const videoRaw = cleanLine(body.video, 500);
     const yt = videoRaw ? youtubeId(httpUrl(videoRaw)) : "";
     if (!title || !player) return send(res, 400, { error: "Please add a moment name and your in-game name." });
@@ -347,7 +356,7 @@ async function api(req, res, url) {
       if (i < 0) return send(res, 404, { error: "Not found." });
       if (body.action === "approve") db.gallery[i].status = "approved";
       else if (body.action === "unapprove") db.gallery[i].status = "pending";
-      else if (body.action === "delete") { const gone = db.gallery.splice(i, 1)[0]; if (gone && gone.file && UPLOAD_RE.test(gone.file) && !db.gallery.some((x) => x.file === gone.file)) fs.unlink(path.join(UPLOAD_DIR, path.basename(gone.file)), () => {}); }
+      else if (body.action === "delete") { const gone = db.gallery.splice(i, 1)[0]; if (gone && gone.file && UPLOAD_RE.test(gone.file) && !db.gallery.some((x) => x.file === gone.file)) fs.unlink(path.join(UPLOAD_DIR, path.basename(gone.file)), () => {}), remote.enabled && remote.delImage(path.basename(gone.file)); }
       save(); return send(res, 200, { ok: true });
     }
     if (url === "/api/admin/application" && method === "POST") {
@@ -388,17 +397,18 @@ async function api(req, res, url) {
 }
 
 // ---------- server ----------
-http.createServer((req, res) => {
+const server = http.createServer((req, res) => {
   const url = req.url.split("?")[0];
   if (url.startsWith("/api/")) return api(req, res, url).catch((e) => { console.log("[api]", e.message); send(res, 500, { error: "Something went wrong on our side. Please try again." }); });
   if (url.startsWith("/uploads/")) {
     const name = url.slice(9);
     if (!sessionOf(req)) { res.writeHead(401); return res.end("Please log in"); }
     if (!UPLOAD_RE.test("uploads/" + name)) { res.writeHead(404); return res.end("Not found"); }
+    const sendImg = (buf) => { res.writeHead(200, { "Content-Type": IMG_TYPES[name.split(".").pop()], "Cache-Control": "private, max-age=86400", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'" }); res.end(buf); };
     return fs.readFile(path.join(UPLOAD_DIR, name), (err, buf) => {
-      if (err) { res.writeHead(404); return res.end("Not found"); }
-      res.writeHead(200, { "Content-Type": IMG_TYPES[name.split(".").pop()], "Cache-Control": "private, max-age=86400", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'" });
-      res.end(buf);
+      if (!err) return sendImg(buf);
+      if (!remote.enabled) { res.writeHead(404); return res.end("Not found"); }
+      remote.getImage(name).then((b) => { if (!b) { res.writeHead(404); return res.end("Not found"); } fs.writeFile(path.join(UPLOAD_DIR, name), b, () => {}); sendImg(b); }).catch(() => { res.writeHead(404); res.end("Not found"); });
     });
   }
   if (url === "/discord-callback") return chat.callback(req, res, { db, save, me: sessionOf(req) });
@@ -420,12 +430,31 @@ http.createServer((req, res) => {
     res.writeHead(200, { "Content-Type": TYPES[path.extname(file)] || "application/octet-stream", "Cache-Control": "no-cache" });
     res.end(buf);
   });
-}).listen(PORT, () => console.log(`VSMP site on http://localhost:${PORT}` + "\nOwner account: " + OWNER_EMAIL + (OWNER_PASSWORD.length >= 8 ? "" : "  (NOT SET UP: add OWNER_PASSWORD=<8+ characters> to .env and restart)")));
+});
 
-// The owner account always exists and uses OWNER_PASSWORD from .env (nobody can register that email).
-if (OWNER_PASSWORD.length >= 8) {
-  const u = db.users.find((x) => x.email === OWNER_EMAIL);
-  if (!u) db.users.push({ email: OWNER_EMAIL, hash: hashPassword(OWNER_PASSWORD), created: Date.now() });
-  else if (!checkPassword(OWNER_PASSWORD, u.hash)) { u.hash = hashPassword(OWNER_PASSWORD); endSessions(OWNER_EMAIL); }
-  save();
+async function boot() {
+  if (remote.enabled) {
+    let loaded = false;
+    for (let i = 1; i <= 4 && !loaded; i++) {
+      try {
+        const saved = await remote.load();
+        if (saved) Object.assign(db, saved);
+        loaded = true;
+        console.log("[remote] saved data " + (saved ? "restored from Upstash" : "not found yet, starting fresh"));
+      } catch (e) { console.log("[remote] couldn't read saved data (try " + i + "/4):", e.message); await new Promise((r) => setTimeout(r, 1500 * i)); }
+    }
+    if (!loaded) { remote.lockWrites(); console.log("[remote] WARNING: saved data could not be read, so nothing will be written to it until the next restart. Check UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN."); }
+  }
+  // The owner account always exists and uses OWNER_PASSWORD from .env (nobody can register that email).
+  if (OWNER_PASSWORD.length >= 8) {
+    const u = db.users.find((x) => x.email === OWNER_EMAIL);
+    if (!u) db.users.push({ email: OWNER_EMAIL, hash: hashPassword(OWNER_PASSWORD), created: Date.now() });
+    else if (!checkPassword(OWNER_PASSWORD, u.hash)) { u.hash = hashPassword(OWNER_PASSWORD); endSessions(OWNER_EMAIL); }
+    save();
+  }
+  server.listen(PORT, () => console.log(`VSMP site on http://localhost:${PORT}` + "\nOwner account: " + OWNER_EMAIL + (OWNER_PASSWORD.length >= 8 ? "" : "  (NOT SET UP: add OWNER_PASSWORD=<8+ characters> to .env and restart)") + "\nSaved data: " + (remote.enabled ? "Upstash (survives restarts)" : "this server's disk only")));
 }
+boot();
+
+// Render stops the old copy when it deploys a new one: write everything out first
+process.on("SIGTERM", async () => { try { await new Promise((r) => { clearTimeout(saveTimer); const now = JSON.stringify(db); fs.writeFile(DB_FILE, now, () => r()); }); if (remote.enabled) { remote.save(JSON.stringify(db)); await remote.flush(); } } catch (e) {} process.exit(0); });
