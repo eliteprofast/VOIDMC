@@ -66,8 +66,8 @@
     function showChip() {
       if (!st.me) { chip.hidden = true; return; }
       chip.hidden = false;
-      chip.replaceChildren(st.me.avatar ? h("img", { class: "msg-av sm", src: st.me.avatar, alt: "" }) : null, h("span", { class: "chat-me" }, st.me.name),
-        h("button", { type: "button", class: "linkbtn", onclick: switchAccount }, "not you?"));
+      chip.replaceChildren(...[st.me.avatar ? h("img", { class: "msg-av sm", src: st.me.avatar, alt: "" }) : null, h("span", { class: "chat-me" }, st.me.name),
+        h("button", { type: "button", class: "linkbtn", onclick: switchAccount }, "not you?")].filter(Boolean));
     }
     async function switchAccount() {
       try { await api("/api/discord/unlink", { body: {} }); } catch (e) {}
@@ -306,9 +306,9 @@
       try {
         const d = await api("/api/chat/members");
         tabMem.querySelector(".chat-online").textContent = d.online + " online";
-        memList.replaceChildren(h("p", { class: "mono small", style: "color:#57F287;padding:8px 12px" }, d.online + " online · " + d.total + " members"),
+        memList.replaceChildren(...[h("p", { class: "mono small", style: "color:#57F287;padding:8px 12px" }, d.online + " online · " + d.total + " members"),
           d.note ? h("p", { class: "chat-empty" }, d.note) : null,
-          ...d.members.map((m) => h("div", { class: "mem" }, h("img", { class: "msg-av", src: m.avatar, alt: "", loading: "lazy" }), h("span", { style: colorOk(m.color) ? "color:" + m.color : null }, m.name), m.bot ? h("span", { class: "msg-tag" }, "BOT") : null)));
+          ...d.members.map((m) => h("div", { class: "mem" }, h("img", { class: "msg-av", src: m.avatar, alt: "", loading: "lazy" }), h("span", { style: colorOk(m.color) ? "color:" + m.color : null }, m.name), m.bot ? h("span", { class: "msg-tag" }, "BOT") : null))].filter(Boolean));
       } catch (e) { memList.replaceChildren(h("p", { class: "chat-empty" }, e.message)); }
     }
     function setTab(t) {

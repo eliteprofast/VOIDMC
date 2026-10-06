@@ -179,10 +179,10 @@
     if (!tabs.some((t) => t[0] === tab)) tab = tabs.length ? tabs[0][0] : "";
     if (!tabs.length) { root.replaceChildren(h("div", { class: "card muted" }, "You don't have permission to manage anything yet. Ask the owner.")); return; }
     const view = { gallery: galleryTab, apps: appsTab, orders: ordersTab, announce: announceTab, questions: questionsTab, console: consoleTab, admins: adminsTab }[tab]();
-    root.replaceChildren(
+    root.replaceChildren(...[
       h("div", { class: "skin-btns", style: "margin-bottom:24px" }, tabs.map(([k, label, n]) => h("button", { type: "button", class: k === tab ? "on" : "", onclick: () => { tab = k; note = ""; draw(); } }, label + (n ? " (" + n + ")" : "")))),
       note ? h("p", { class: "mono small white", style: "margin-bottom:16px" }, note) : null,
-      h("div", { class: "stack" }, view));
+      h("div", { class: "stack" }, view)].filter(Boolean));
   }
   start();
 })();
