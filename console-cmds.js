@@ -20,6 +20,7 @@ const COMMANDS = {
   orders:    { who: "orders", usage: "orders [pending]", about: "list orders" },
   order:     { who: "orders", usage: "order <id> pending|paid|delivered", about: "update an order's status" },
   apps:      { who: "applications", usage: "apps [pending]", about: "list staff applications" },
+  diag:      { who: "owner", usage: "diag", about: "which settings the site can see (names only, never values)" },
   logs:      { who: "owner", usage: "logs [count]", about: "recent server log lines" },
   users:     { who: "owner", usage: "users [search]", about: "list site accounts" },
   user:      { who: "owner", usage: "user <email>", about: "details for one account" },
@@ -63,7 +64,7 @@ async function run(line, ctx) {
         "orders        " + db.orders.length + " (" + pending(db.orders, (o) => o.status === "pending") + " pending)",
         "applications  " + db.applications.length + " (" + pending(db.applications, (a) => a.status === "pending") + " pending)",
         "minecraft     " + ctx.mcAddress,
-        "rcon          " + (ctx.rconReady ? "set up" : "not set up"),
+        "rcon          " + (ctx.rconReady ? "set up -> " + ctx.rconHost + ":" + ctx.rconPort : "not set up (the site sees no RCON_PASSWORD; type diag)"),
         "discord       " + (ctx.discordReady ? "set up" : "not set up")
       ].join("\n") };
     }
@@ -118,6 +119,19 @@ async function run(line, ctx) {
     case "apps": {
       const list = db.applications.filter((a) => args[0] !== "pending" || a.status === "pending").slice(-25);
       return { text: list.length ? list.map((a) => `#${a.id}  ${a.status.padEnd(11)} ${a.name.slice(0, 20).padEnd(20)} mc:${a.minecraft}  (${ago(a.created)})`).join("\n") : "No applications." };
+    }
+    case "diag": {
+      const env = ctx.env || {};
+      const expected = ["OWNER_PASSWORD", "SUPABASE_URL", "SUPABASE_SERVICE_KEY", "DISCORD_BOT_TOKEN", "DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET", "DISCORD_GUILD_ID", "RCON_PASSWORD", "RCON_PORT", "RCON_HOST", "MC_ADDRESS", "TRUST_PROXY", "PUBLIC_URL", "DATA_DIR"];
+      const rows = expected.map((k) => {
+        const v = env[k];
+        if (v == null || v === "") return k.padEnd(24) + "not set";
+        const warn = [/^\s|\s$/.test(v) ? "has a space at the start or end" : "", /^["']|["']$/.test(v) ? "has quote marks" : "", /^=/.test(v) ? "starts with =" : ""].filter(Boolean).join(", ");
+        return k.padEnd(24) + "set (" + v.length + " characters)" + (warn ? "   <- WARNING: " + warn : "");
+      });
+      const known = new Set(expected);
+      const odd = Object.keys(env).filter((k) => /rcon|discord|supabase|upstash|owner|minecraft|mc_/i.test(k) && !known.has(k));
+      return { text: rows.join("\n") + (odd.length ? "\n\nOther settings with related names (is one of these a misspelling?):\n  " + odd.join("\n  ") : "") + "\n\nOnly names and lengths are shown. Values are never displayed." };
     }
     case "logs": {
       const n = Math.min(200, Math.max(1, parseInt(args[0], 10) || 40));

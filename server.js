@@ -378,9 +378,9 @@ async function api(req, res, url) {
         me, owner: me === OWNER_EMAIL, can: (p) => can(me, p), db, save, logs: LOGS, ownerEmail: OWNER_EMAIL,
         storage: remote.enabled ? remote.label + " (survives restarts)" : "this server's disk only (erased on free-plan restarts)",
         mcAddress: addr, mcPing: mcStatus,
-        rconReady: !!process.env.RCON_PASSWORD, rconHost: process.env.RCON_HOST || host, rconPort: Number(process.env.RCON_PORT) || 25575, rconPassword: process.env.RCON_PASSWORD || "",
+        rconReady: !!String(process.env.RCON_PASSWORD || "").trim(), rconHost: String(process.env.RCON_HOST || "").replace(/^[=s]+|s+$/g, "") || host, rconPort: parseInt(String(process.env.RCON_PORT || "").replace(/D/g, ""), 10) || 25575, rconPassword: String(process.env.RCON_PASSWORD || "").trim(), // tolerant of stray spaces
         discordReady: !!(process.env.DISCORD_BOT_TOKEN && process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET),
-        endSessions, resetPassword: resetMemberPassword,
+        endSessions, resetPassword: resetMemberPassword, env: process.env,
         dropImage: (g) => { if (g && g.file && UPLOAD_RE.test(g.file) && !db.gallery.some((x) => x.file === g.file)) { fs.unlink(path.join(UPLOAD_DIR, path.basename(g.file)), () => {}); if (remote.enabled) remote.delImage(path.basename(g.file)); } }
       }).catch((e) => ({ text: "That command failed: " + (e && e.message ? e.message : "unknown error"), error: true }));
       return send(res, 200, r);
