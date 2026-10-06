@@ -131,6 +131,7 @@ async function run(line, ctx) {
       });
       const known = new Set(expected);
       const odd = Object.keys(env).filter((k) => /rcon|discord|supabase|upstash|owner|minecraft|mc_/i.test(k) && !known.has(k));
+      rows.push("", "Save folder in use: " + (ctx.dataDir || "?") + (ctx.dataDirNote ? "\n  WARNING: " + ctx.dataDirNote : ""));
       return { text: rows.join("\n") + (odd.length ? "\n\nOther settings with related names (is one of these a misspelling?):\n  " + odd.join("\n  ") : "") + "\n\nOnly names and lengths are shown. Values are never displayed." };
     }
     case "logs": {

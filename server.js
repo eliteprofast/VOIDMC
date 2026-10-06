@@ -31,8 +31,14 @@ const PUBLIC_FILES = ["login.html", "style.css", "config.js", "bg.js", "ui.js", 
 
 // ---------- database (data.json) ----------
 // DATA_DIR lets a host keep the data on a persistent disk (e.g. /var/data on Render). Defaults to this folder.
-const DATA_DIR = process.env.DATA_DIR || __dirname;
-try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
+let DATA_DIR = process.env.DATA_DIR || __dirname, DATA_DIR_NOTE = "";
+function usable(dir) { try { fs.mkdirSync(dir, { recursive: true }); fs.accessSync(dir, fs.constants.W_OK); return true; } catch (e) { return false; } }
+if (!usable(DATA_DIR)) { // e.g. DATA_DIR=/var/data but there is no disk attached
+  DATA_DIR_NOTE = "DATA_DIR (" + DATA_DIR + ") can't be used here, so a temporary folder is used instead. Remove DATA_DIR in Render unless you added a Disk.";
+  DATA_DIR = path.join(require("os").tmpdir(), "vsmp-data");
+  usable(DATA_DIR);
+  console.log("[storage] " + DATA_DIR_NOTE);
+}
 const DB_FILE = path.join(DATA_DIR, "data.json");
 const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
 try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch (e) {}
@@ -214,7 +220,8 @@ async function api(req, res, url) {
     if (!ext) return send(res, 400, { error: "That file isn't a PNG, JPG, GIF or WebP image." });
     const name = crypto.randomBytes(12).toString("hex") + "." + ext;
     if (remote.enabled) { try { await remote.putImage(name, buf); } catch (e) { console.log("[remote] image save failed:", e.message); return send(res, 502, { error: "Couldn't save the image right now. Please try again." }); } }
-    fs.writeFileSync(path.join(UPLOAD_DIR, name), buf);
+    try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); fs.writeFileSync(path.join(UPLOAD_DIR, name), buf); }
+    catch (e) { console.log("[storage] couldn't write the upload locally:", e.code || e.message); if (!remote.enabled) return send(res, 500, { error: "The server couldn't save the image. Please tell the site owner." }); }
     return send(res, 200, { path: "uploads/" + name });
   }
 
@@ -380,7 +387,7 @@ async function api(req, res, url) {
         mcAddress: addr, mcPing: mcStatus,
         rconReady: !!String(process.env.RCON_PASSWORD || "").trim(), rconHost: String(process.env.RCON_HOST || "").replace(/^[=s]+|s+$/g, "") || host, rconPort: parseInt(String(process.env.RCON_PORT || "").replace(/D/g, ""), 10) || 25575, rconPassword: String(process.env.RCON_PASSWORD || "").trim(), // tolerant of stray spaces
         discordReady: !!(process.env.DISCORD_BOT_TOKEN && process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET),
-        endSessions, resetPassword: resetMemberPassword, env: process.env,
+        endSessions, resetPassword: resetMemberPassword, env: process.env, dataDir: DATA_DIR, dataDirNote: DATA_DIR_NOTE,
         dropImage: (g) => { if (g && g.file && UPLOAD_RE.test(g.file) && !db.gallery.some((x) => x.file === g.file)) { fs.unlink(path.join(UPLOAD_DIR, path.basename(g.file)), () => {}); if (remote.enabled) remote.delImage(path.basename(g.file)); } }
       }).catch((e) => ({ text: "That command failed: " + (e && e.message ? e.message : "unknown error"), error: true }));
       return send(res, 200, r);
