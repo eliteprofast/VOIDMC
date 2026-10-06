@@ -346,6 +346,19 @@ async function api(req, res, url) {
       }
       return send(res, 200, { owner: OWNER_EMAIL, allPerms: ALL_PERMS, admins: db.admins.map((e) => ({ email: e, perms: permsOf(e) })) });
     }
+    if (url === "/api/admin/reset-member" && method === "POST") { // owner only: set a new password for any member (or create the account), and lift their login block
+      if (me !== OWNER_EMAIL) return send(res, 403, { error: "Only the owner can reset passwords." });
+      const e = cleanLine(body.email, 130).toLowerCase(), pw = String(body.password || "").slice(0, 200);
+      if (!EMAIL_RE.test(e)) return send(res, 400, { error: "That email doesn't look right." });
+      if (e === OWNER_EMAIL) return send(res, 400, { error: "Your own password comes from OWNER_PASSWORD in Render." });
+      if (db.admins.includes(e)) return send(res, 400, { error: "That person is an admin. Use 'Add an admin' with their email to set a new password." });
+      if (pw.length < 8) return send(res, 400, { error: "Give them a password of at least 8 characters." });
+      const u = db.users.find((x) => x.email === e);
+      if (u) { u.hash = hashPassword(pw); endSessions(e); } else db.users.push({ email: e, hash: hashPassword(pw), created: Date.now() });
+      for (const k of Array.from(buckets.keys())) if (k === "loginm:" + e || k.startsWith("login:")) buckets.delete(k); // lifts the "too many tries" wait
+      save();
+      return send(res, 200, { ok: true, created: !u });
+    }
     if (url === "/api/admin/data" && method === "GET")
       return send(res, 200, { me, owner: me === OWNER_EMAIL, perms: permsOf(me),
         gallery: can(me, "gallery") ? db.gallery.map((g) => Object.assign(publicGallery(g), { status: g.status })) : [],

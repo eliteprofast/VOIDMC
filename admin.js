@@ -86,6 +86,8 @@
     const email = h("input", { type: "email", placeholder: "person@example.com", maxlength: 130 });
     const pw = h("input", { type: "text", placeholder: "Password you give them (8+ characters)", maxlength: 100 });
     const newPerms = permBoxes(all, all);
+    const resetEmail = h("input", { type: "email", placeholder: "member@example.com", maxlength: 130 });
+    const resetPw = h("input", { type: "text", placeholder: "New password (8+ characters)", maxlength: 100 });
     return [
       h("div", { class: "card stack", style: "max-width:40rem" },
         h("h3", {}, "Admins and what they can do"),
@@ -107,6 +109,10 @@
             savebtn, status,
             btn("REMOVE ADMIN", () => confirm("Remove " + a.email + " as admin?") && act("/api/admin/admins", { email: a.email, action: "remove" }, "Removed."), "danger")));
       }),
+      h("div", { class: "card stack", style: "max-width:40rem" }, h("h3", {}, "Reset a member's password"),
+        h("p", { class: "muted" }, "Forgotten password, or locked out by 'too many tries'? Type their email and a new password, then give it to them. This also lifts the lock right away. If the account doesn't exist yet, it gets created."),
+        resetEmail, resetPw,
+        btn("RESET PASSWORD", () => resetEmail.value.trim() && act("/api/admin/reset-member", { email: resetEmail.value, password: resetPw.value }, "Done. Give them the email and the new password."), "on")),
       h("div", { class: "card stack", style: "max-width:40rem" }, h("h3", {}, "Add an admin"),
         h("p", { class: "muted" }, "You create their account and give them the password, so nobody can sign up as an admin. Adding an email that already has an account resets its password."),
         email, pw, ...newPerms.nodes,
