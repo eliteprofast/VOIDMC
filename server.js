@@ -14,7 +14,11 @@ try {
 } catch (e) {}
 const chat = require("./chat-server");
 const mc = require("./mcstatus");
-const remote = require("./remote"); // optional outside storage, so data survives restarts // after .env is loaded, because it reads the bot token
+const remote = require("./remote"); // optional outside storage, so data survives restarts
+const consoleCmds = require("./console-cmds");
+// keep the last few hundred log lines so the admin console can show them
+const LOGS = [];
+{ const orig = console.log; console.log = (...a) => { LOGS.push(new Date().toISOString().slice(11, 19) + " " + a.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" ").slice(0, 300)); if (LOGS.length > 300) LOGS.shift(); orig(...a); }; } // after .env is loaded, because it reads the bot token
 const PORT = process.env.PORT || 3000;
 const OWNER_EMAIL = (process.env.OWNER_EMAIL || "ali.eliteprofast@gmail.com").trim().toLowerCase();
 const OWNER_PASSWORD = process.env.OWNER_PASSWORD || ""; // password of the owner account
@@ -59,7 +63,7 @@ const DEFAULT_QUESTIONS = [
   { id: "q6", step: "Availability", step_order: 3, label: "I have read and understood the server rules", hint: "", type: "checkbox", options: [], required: true, sort: 6 },
   { id: "q7", step: "Availability", step_order: 3, label: "Link to a screenshot (optional)", hint: "Upload to imgur or similar and paste the link", type: "screenshot", options: [], required: false, sort: 7 }
 ];
-let db = { nextId: 1, gallery: [], applications: [], orders: [], announcement: null, questions: DEFAULT_QUESTIONS, users: [], admins: [], sessions: {}, chatPosts: {}, reactions: {}, adminPerms: {} };
+let db = { nextId: 1, gallery: [], applications: [], orders: [], announcement: null, questions: DEFAULT_QUESTIONS, users: [], admins: [], sessions: {}, chatPosts: {}, reactions: {}, adminPerms: {}, banned: [], audit: [] };
 try { db = Object.assign(db, JSON.parse(fs.readFileSync(DB_FILE, "utf8"))); } catch (e) {}
 let saveTimer = null;
 function save() {
@@ -145,6 +149,7 @@ function cookieOf(req, name) {
 function sessionOf(req) {
   const s = db.sessions[cookieOf(req, "vsmp_s")];
   if (!s) return null;
+  if ((db.banned || []).includes(s.email)) return null;
   if (Date.now() - s.created > SESSION_MS) { delete db.sessions[cookieOf(req, "vsmp_s")]; return null; }
   return s.email;
 }
@@ -157,12 +162,39 @@ function startSession(res, email) {
 function endSessions(email) { for (const t of Object.keys(db.sessions)) if (db.sessions[t].email === email) delete db.sessions[t]; save(); }
 const isAdminEmail = (e) => !!e && (e === OWNER_EMAIL || db.admins.includes(e));
 // what each admin may manage. The owner can do everything; admins added before this existed keep full access.
-const ALL_PERMS = ["gallery", "applications", "orders", "announcement", "questions", "chat"];
-const permsOf = (e) => (e === OWNER_EMAIL ? ALL_PERMS.slice() : db.admins.includes(e) ? (db.adminPerms[e] || ALL_PERMS.slice()) : []);
+const ALL_PERMS = ["gallery", "applications", "orders", "announcement", "questions", "chat", "console"];
+const permsOf = (e) => (e === OWNER_EMAIL ? ALL_PERMS.slice() : db.admins.includes(e) ? (db.adminPerms[e] || ALL_PERMS.filter((p) => p !== "console")) : []);
 const can = (e, p) => permsOf(e).includes(p);
 const cleanPerms = (p) => ALL_PERMS.filter((x) => Array.isArray(p) && p.includes(x));
 
 let mcCache = { at: 0, data: null };
+async function mcStatus() {
+  const now = Date.now();
+  if (!mcCache.data || now - mcCache.at > 15000) {
+    const addr = String(process.env.MC_ADDRESS || loadConfig().serverIp || "").trim(); // MC_ADDRESS can override config.js
+    const m = addr.match(/^(.+?)(?::(\d{1,5}))?$/);
+    let r = m ? await mc.ping(m[1], Number(m[2]) || 25565, 5000) : { online: false, reason: "no-address" };
+    if (!r.online) { // a second opinion from a public service, in case this host can't reach the server
+      try {
+        const d = await (await fetch("https://api.mcstatus.io/v2/status/java/" + encodeURIComponent(addr), { signal: AbortSignal.timeout(6000) })).json();
+        if (d.online) r = { online: true, now: d.players.online, max: d.players.max, version: d.version && d.version.name_clean, motd: "", ms: null, via: "mcstatus.io" };
+      } catch (e) {}
+    }
+    mcCache = { at: now, data: Object.assign({ address: addr }, r) };
+  }
+  return mcCache.data;
+}
+function resetMemberPassword(e, pw) {
+  if (!EMAIL_RE.test(e)) return { error: "That email doesn't look right." };
+  if (e === OWNER_EMAIL) return { error: "Your own password comes from OWNER_PASSWORD in Render." };
+  if (db.admins.includes(e)) return { error: "That person is an admin. Use 'Add an admin' with their email to set a new password." };
+  if (pw.length < 8) return { error: "Give them a password of at least 8 characters." };
+  const u = db.users.find((x) => x.email === e);
+  if (u) { u.hash = hashPassword(pw); endSessions(e); } else db.users.push({ email: e, hash: hashPassword(pw), created: Date.now() });
+  for (const k of Array.from(buckets.keys())) if (k === "loginm:" + e || k.startsWith("login:")) buckets.delete(k); // lifts the "too many tries" wait
+  save();
+  return { ok: true, created: !u };
+}
 const publicGallery = (g) => ({ id: g.id, title: g.title, kind: g.kind, url: g.url, thumb: g.thumb, player: g.player, caption: g.caption, votes: g.voters.length });
 
 // ---------- API ----------
@@ -216,6 +248,7 @@ async function api(req, res, url) {
       if (limited("login:" + ip, 12, 900000) || limited("loginm:" + email, 8, 900000)) return bad("Too many tries. Wait 15 minutes.", 429);
       const u = db.users.find((x) => x.email === email);
       if (!u || !checkPassword(password, u.hash)) return bad("Wrong email or password.", 401);
+      if ((db.banned || []).includes(email)) return bad("This account is suspended. Please contact staff.", 403);
       startSession(res, email);
       return send(res, 200, { ok: true });
     }
@@ -228,22 +261,7 @@ async function api(req, res, url) {
   if (url.startsWith("/api/chat/") || url.startsWith("/api/discord/")) { if (await chat.handle(url, { req, res, send, body, db, save, limited, me, isAdmin: can(me, "chat") })) return; } // admins with the "chat" permission can delete anyone's messages
 
   // Minecraft server status, asked directly by this server and shared by everyone for a few seconds
-  if (url === "/api/mc-status" && method === "GET") {
-    const now = Date.now();
-    if (!mcCache.data || now - mcCache.at > 15000) {
-      const addr = String(process.env.MC_ADDRESS || loadConfig().serverIp || "").trim(); // MC_ADDRESS can override config.js
-      const m = addr.match(/^(.+?)(?::(\d{1,5}))?$/);
-      let r = m ? await mc.ping(m[1], Number(m[2]) || 25565, 5000) : { online: false, reason: "no-address" };
-      if (!r.online) { // a second opinion from a public service, in case this host can't reach the server
-        try {
-          const d = await (await fetch("https://api.mcstatus.io/v2/status/java/" + encodeURIComponent(addr), { signal: AbortSignal.timeout(6000) })).json();
-          if (d.online) r = { online: true, now: d.players.online, max: d.players.max, version: d.version && d.version.name_clean, motd: "", ms: null, via: "mcstatus.io" };
-        } catch (e) {}
-      }
-      mcCache = { at: now, data: Object.assign({ address: addr }, r) };
-    }
-    return send(res, 200, mcCache.data);
-  }
+  if (url === "/api/mc-status" && method === "GET") return send(res, 200, await mcStatus());
 
   // public reads
   if (url === "/api/announcement" && method === "GET") return send(res, 200, db.announcement && db.announcement.active && db.announcement.message ? db.announcement : {});
@@ -348,16 +366,24 @@ async function api(req, res, url) {
     }
     if (url === "/api/admin/reset-member" && method === "POST") { // owner only: set a new password for any member (or create the account), and lift their login block
       if (me !== OWNER_EMAIL) return send(res, 403, { error: "Only the owner can reset passwords." });
-      const e = cleanLine(body.email, 130).toLowerCase(), pw = String(body.password || "").slice(0, 200);
-      if (!EMAIL_RE.test(e)) return send(res, 400, { error: "That email doesn't look right." });
-      if (e === OWNER_EMAIL) return send(res, 400, { error: "Your own password comes from OWNER_PASSWORD in Render." });
-      if (db.admins.includes(e)) return send(res, 400, { error: "That person is an admin. Use 'Add an admin' with their email to set a new password." });
-      if (pw.length < 8) return send(res, 400, { error: "Give them a password of at least 8 characters." });
-      const u = db.users.find((x) => x.email === e);
-      if (u) { u.hash = hashPassword(pw); endSessions(e); } else db.users.push({ email: e, hash: hashPassword(pw), created: Date.now() });
-      for (const k of Array.from(buckets.keys())) if (k === "loginm:" + e || k.startsWith("login:")) buckets.delete(k); // lifts the "too many tries" wait
-      save();
-      return send(res, 200, { ok: true, created: !u });
+      const r = resetMemberPassword(cleanLine(body.email, 130).toLowerCase(), String(body.password || "").slice(0, 200));
+      return r.error ? send(res, 400, { error: r.error }) : send(res, 200, r);
+    }
+    if (url === "/api/admin/console" && method === "POST") {
+      if (!can(me, "console")) return send(res, 403, DENIED);
+      if (limited("con:" + me, 90, 60000)) return send(res, 429, { text: "Slow down a little.", error: true });
+      const addr = String(process.env.MC_ADDRESS || loadConfig().serverIp || "").trim();
+      const host = addr.replace(/:\d+$/, "");
+      const r = await consoleCmds.run(String(body.command || ""), {
+        me, owner: me === OWNER_EMAIL, can: (p) => can(me, p), db, save, logs: LOGS, ownerEmail: OWNER_EMAIL,
+        storage: remote.enabled ? remote.label + " (survives restarts)" : "this server's disk only (erased on free-plan restarts)",
+        mcAddress: addr, mcPing: mcStatus,
+        rconReady: !!process.env.RCON_PASSWORD, rconHost: process.env.RCON_HOST || host, rconPort: Number(process.env.RCON_PORT) || 25575, rconPassword: process.env.RCON_PASSWORD || "",
+        discordReady: !!(process.env.DISCORD_BOT_TOKEN && process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET),
+        endSessions, resetPassword: resetMemberPassword,
+        dropImage: (g) => { if (g && g.file && UPLOAD_RE.test(g.file) && !db.gallery.some((x) => x.file === g.file)) { fs.unlink(path.join(UPLOAD_DIR, path.basename(g.file)), () => {}); if (remote.enabled) remote.delImage(path.basename(g.file)); } }
+      }).catch((e) => ({ text: "That command failed: " + (e && e.message ? e.message : "unknown error"), error: true }));
+      return send(res, 200, r);
     }
     if (url === "/api/admin/data" && method === "GET")
       return send(res, 200, { me, owner: me === OWNER_EMAIL, perms: permsOf(me),

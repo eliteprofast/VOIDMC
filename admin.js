@@ -75,7 +75,40 @@
       btn("SAVE", () => act("/api/admin/announcement", { message: f.message.value, tag: f.tag.value, link_url: f.url.value, link_label: f.label.value, active: f.active.checked }, "Announcement saved."), "on"))];
   }
 
-  const PERM_LABELS = { gallery: "Gallery: approve, hide and delete moments", applications: "Staff applications: read and decide", orders: "Orders: mark paid and delivered", announcement: "Announcement bar", questions: "Edit the application questions", chat: "Chat moderator: delete anyone's messages" };
+  // ----- console: a terminal-style box. Built once, so what you typed is still there when you come back to this tab -----
+  let term = null;
+  function consoleTab() {
+    if (term) { setTimeout(() => term.input.focus(), 0); return [term.wrap]; }
+    const out = h("div", { class: "term-out", role: "log", "aria-live": "polite", tabindex: "0" });
+    const input = h("input", { class: "term-in", autocomplete: "off", autocapitalize: "off", spellcheck: "false", "aria-label": "Console command", placeholder: "type a command, or help" });
+    let hist = []; try { hist = JSON.parse(localStorage.getItem("vsmp_term_hist") || "[]"); } catch (e) {}
+    let pos = hist.length, busy = false;
+    const line = (text, cls) => { out.append(h("div", { class: "term-line " + (cls || "") }, text)); out.scrollTop = out.scrollHeight; };
+    const hide = (c) => c.replace(/^(resetpw\s+\S+\s+).*/i, "$1***"); // never keep a password on screen or in history
+    line("VSMP console. Type help to see what you can do. Commands run on the live site.", "dim");
+    async function run(cmd) {
+      cmd = cmd.trim(); if (!cmd || busy) return;
+      hist.push(hide(cmd)); hist = hist.slice(-60); pos = hist.length;
+      try { localStorage.setItem("vsmp_term_hist", JSON.stringify(hist)); } catch (e) {}
+      line("> " + hide(cmd), "cmd");
+      if (cmd.toLowerCase() === "clear") { out.replaceChildren(); return; }
+      busy = true; input.disabled = true;
+      try { const d = await call("/api/admin/console", { command: cmd }); line(d.text || "(done)", d.error ? "bad" : ""); }
+      catch (e) { line(e.message, "bad"); }
+      busy = false; input.disabled = false; input.focus();
+    }
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); const v = input.value; input.value = ""; run(v); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); if (pos > 0) input.value = hist[--pos]; }
+      else if (e.key === "ArrowDown") { e.preventDefault(); pos = Math.min(hist.length, pos + 1); input.value = hist[pos] || ""; }
+    });
+    const wrap = h("div", { class: "term", onclick: () => input.focus() }, out, h("div", { class: "term-row" }, h("span", { class: "term-prompt" }, ">"), input));
+    term = { wrap, input };
+    setTimeout(() => input.focus(), 0);
+    return [wrap];
+  }
+
+  const PERM_LABELS = { gallery: "Gallery: approve, hide and delete moments", applications: "Staff applications: read and decide", orders: "Orders: mark paid and delivered", announcement: "Announcement bar", questions: "Edit the application questions", chat: "Chat moderator: delete anyone's messages", console: "Console: run commands, including Minecraft server commands (powerful, give with care)" };
   function permBoxes(allPerms, have) {
     const boxes = {};
     const nodes = allPerms.map((p) => { boxes[p] = h("input", { type: "checkbox", checked: have.includes(p) }); return h("label", { class: "check" }, boxes[p], " " + (PERM_LABELS[p] || p)); });
@@ -85,7 +118,7 @@
     const all = data.allPerms || Object.keys(PERM_LABELS);
     const email = h("input", { type: "email", placeholder: "person@example.com", maxlength: 130 });
     const pw = h("input", { type: "text", placeholder: "Password you give them (8+ characters)", maxlength: 100 });
-    const newPerms = permBoxes(all, all);
+    const newPerms = permBoxes(all, all.filter((p) => p !== "console")); // the console is only given on purpose
     const resetEmail = h("input", { type: "email", placeholder: "member@example.com", maxlength: 130 });
     const resetPw = h("input", { type: "text", placeholder: "New password (8+ characters)", maxlength: 100 });
     return [
@@ -141,10 +174,11 @@
       has("orders") ? [["orders", "Orders", data.orders.filter((o) => o.status === "pending").length]] : [],
       has("announcement") ? [["announce", "Announcement", 0]] : [],
       has("questions") ? [["questions", "Questions", 0]] : [],
+      has("console") ? [["console", "Console", 0]] : [],
       data.owner ? [["admins", "Admins", 0]] : []);
     if (!tabs.some((t) => t[0] === tab)) tab = tabs.length ? tabs[0][0] : "";
     if (!tabs.length) { root.replaceChildren(h("div", { class: "card muted" }, "You don't have permission to manage anything yet. Ask the owner.")); return; }
-    const view = { gallery: galleryTab, apps: appsTab, orders: ordersTab, announce: announceTab, questions: questionsTab, admins: adminsTab }[tab]();
+    const view = { gallery: galleryTab, apps: appsTab, orders: ordersTab, announce: announceTab, questions: questionsTab, console: consoleTab, admins: adminsTab }[tab]();
     root.replaceChildren(
       h("div", { class: "skin-btns", style: "margin-bottom:24px" }, tabs.map(([k, label, n]) => h("button", { type: "button", class: k === tab ? "on" : "", onclick: () => { tab = k; note = ""; draw(); } }, label + (n ? " (" + n + ")" : "")))),
       note ? h("p", { class: "mono small white", style: "margin-bottom:16px" }, note) : null,

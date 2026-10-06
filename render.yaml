@@ -19,6 +19,10 @@ services:
         sync: false
       - key: UPSTASH_REDIS_REST_TOKEN
         sync: false
+      - key: RCON_PASSWORD              # optional: lets the admin console run Minecraft server commands (enable RCON in server.properties first)
+        sync: false
+      - key: RCON_PORT
+        value: "25575"
       - key: DISCORD_BOT_TOKEN          # the bot token for the live chat (never put it in git)
         sync: false
       - key: DISCORD_CLIENT_ID          # Discord application > OAuth2 > Client ID (for "Continue with Discord")
