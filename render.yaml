@@ -11,6 +11,10 @@ services:
     envVars:
       - key: OWNER_PASSWORD     # you type this in the Render dashboard, it is never stored in git
         sync: false
+      - key: SUPABASE_URL               # free outside storage (Supabase): keeps accounts, links, gallery and images across restarts
+        sync: false
+      - key: SUPABASE_SERVICE_KEY       # the secret "service_role" key (never put it in git)
+        sync: false
       - key: UPSTASH_REDIS_REST_URL     # free outside storage: keeps accounts, links, gallery and images across restarts
         sync: false
       - key: UPSTASH_REDIS_REST_TOKEN

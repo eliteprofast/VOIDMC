@@ -56,7 +56,8 @@
   // submit form
   const form = document.getElementById("gallery-form");
   document.getElementById("gallery-toggle").addEventListener("click", () => form.classList.toggle("open"));
-  const LIMIT = 550 * 1024;
+  let LIMIT = 550 * 1024; // updated from the server below: Supabase allows bigger pictures than Upstash
+  api("/api/upload-info").then((d) => { LIMIT = Math.min(Math.floor(d.max * 0.9), 4 * 1024 * 1024); }).catch(() => {});
   async function shrink(f) {
     if (f.size <= LIMIT) return f;
     if (f.type === "image/gif") throw new Error("That GIF is too big. Please pick one under 0.5 MB, or a normal picture.");

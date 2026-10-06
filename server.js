@@ -170,13 +170,14 @@ async function api(req, res, url) {
   const method = req.method;
   const ip = ipOf(req);
 
+  if (url === "/api/upload-info" && method === "GET") { if (!sessionOf(req)) return send(res, 401, { error: "Please log in." }); return send(res, 200, { max: remote.enabled ? remote.MAX_IMAGE : 5 * 1024 * 1024 }); }
   if (url === "/api/upload" && method === "POST") {
     const who = sessionOf(req);
     if (!who) return send(res, 401, { error: "Please log in." });
     if (limited("up:" + who, 8, 3600000)) return send(res, 429, { error: "You've uploaded a few already. Please try again later." });
     let buf;
     const cap = remote.enabled ? remote.MAX_IMAGE : 5 * 1024 * 1024;
-    try { buf = await readRaw(req, cap); } catch (e) { return send(res, 413, { error: remote.enabled ? "That image is too big (limit about 0.6 MB). Pictures are shrunk automatically; for a GIF please pick a smaller one." : "That image is too big. The limit is 5 MB." }); }
+    try { buf = await readRaw(req, cap); } catch (e) { return send(res, 413, { error: "That image is too big (limit about " + (cap >= 1048576 ? Math.round(cap / 1048576) + " MB" : Math.round(cap / 1024) + " KB") + "). Pictures are shrunk automatically; for a GIF please pick a smaller one." }); }
     const ext = sniffImage(buf);
     if (!ext) return send(res, 400, { error: "That file isn't a PNG, JPG, GIF or WebP image." });
     const name = crypto.randomBytes(12).toString("hex") + "." + ext;
@@ -440,10 +441,10 @@ async function boot() {
         const saved = await remote.load();
         if (saved) Object.assign(db, saved);
         loaded = true;
-        console.log("[remote] saved data " + (saved ? "restored from Upstash" : "not found yet, starting fresh"));
+        console.log("[remote] saved data " + (saved ? "restored from " + remote.label : "not found yet, starting fresh"));
       } catch (e) { console.log("[remote] couldn't read saved data (try " + i + "/4):", e.message); await new Promise((r) => setTimeout(r, 1500 * i)); }
     }
-    if (!loaded) { remote.lockWrites(); console.log("[remote] WARNING: saved data could not be read, so nothing will be written to it until the next restart. Check UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN."); }
+    if (!loaded) { remote.lockWrites(); console.log("[remote] WARNING: saved data could not be read, so nothing will be written to it until the next restart. Check your storage settings in Render (Supabase or Upstash)."); }
   }
   // The owner account always exists and uses OWNER_PASSWORD from .env (nobody can register that email).
   if (OWNER_PASSWORD.length >= 8) {
@@ -452,7 +453,7 @@ async function boot() {
     else if (!checkPassword(OWNER_PASSWORD, u.hash)) { u.hash = hashPassword(OWNER_PASSWORD); endSessions(OWNER_EMAIL); }
     save();
   }
-  server.listen(PORT, () => console.log(`VSMP site on http://localhost:${PORT}` + "\nOwner account: " + OWNER_EMAIL + (OWNER_PASSWORD.length >= 8 ? "" : "  (NOT SET UP: add OWNER_PASSWORD=<8+ characters> to .env and restart)") + "\nSaved data: " + (remote.enabled ? "Upstash (survives restarts)" : "this server's disk only")));
+  server.listen(PORT, () => console.log(`VSMP site on http://localhost:${PORT}` + "\nOwner account: " + OWNER_EMAIL + (OWNER_PASSWORD.length >= 8 ? "" : "  (NOT SET UP: add OWNER_PASSWORD=<8+ characters> to .env and restart)") + "\nSaved data: " + (remote.enabled ? remote.label + " (survives restarts)" : "this server's disk only")));
 }
 boot();
 
