@@ -120,7 +120,7 @@ async function notify(text) {
 
 // ---------- accounts ----------
 const EMAIL_RE = /^[^@\s,;<>"]{1,64}@[^@\s,;<>"]{1,120}\.[^@\s,;<>"]{2,}$/;
-const SESSION_MS = 30 * 24 * 3600 * 1000;
+const SESSION_MS = 365 * 24 * 3600 * 1000; // stay logged in for a year on a device
 function hashPassword(pw) {
   const salt = crypto.randomBytes(16);
   return salt.toString("hex") + ":" + crypto.scryptSync(String(pw), salt, 64).toString("hex");
@@ -178,8 +178,7 @@ async function api(req, res, url) {
 
   // ----- auth (the only routes that don't need a login) -----
   if (url === "/api/auth/logout") {
-    const who = sessionOf(req), u = who && db.users.find((x) => x.email === who);
-    if (u) delete u.discord; // logging out clears the Discord link, so the next login starts from the Discord sign-in screen
+    // the Discord link belongs to the VSMP account (email), so logging out does NOT remove it
     delete db.sessions[cookieOf(req, "vsmp_s")]; save();
     res.setHeader("Set-Cookie", "vsmp_s=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0");
     return send(res, 200, { ok: true });
