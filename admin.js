@@ -64,16 +64,33 @@
       btn("SAVE", () => act("/api/admin/announcement", { message: f.message.value, tag: f.tag.value, link_url: f.url.value, link_label: f.label.value, active: f.active.checked }, "Announcement saved."), "on"))];
   }
 
+  const PERM_LABELS = { gallery: "Gallery: approve, hide and delete moments", applications: "Staff applications: read and decide", orders: "Orders: mark paid and delivered", announcement: "Announcement bar", questions: "Edit the application questions", chat: "Chat moderator: delete anyone's messages" };
+  function permBoxes(allPerms, have) {
+    const boxes = {};
+    const nodes = allPerms.map((p) => { boxes[p] = h("input", { type: "checkbox", checked: have.includes(p) }); return h("label", { class: "check" }, boxes[p], " " + (PERM_LABELS[p] || p)); });
+    return { nodes, get: () => allPerms.filter((p) => boxes[p].checked) };
+  }
   function adminsTab() {
+    const all = data.allPerms || Object.keys(PERM_LABELS);
     const email = h("input", { type: "email", placeholder: "person@example.com", maxlength: 130 });
     const pw = h("input", { type: "text", placeholder: "Password you give them (8+ characters)", maxlength: 100 });
+    const newPerms = permBoxes(all, all);
     return [
-      h("div", { class: "card stack", style: "max-width:36rem" },
-        h("h3", {}, "Admin emails"),
-        h("p", { class: "muted" }, "Admins get the ADMIN bar. You create their account here and hand them the password, so nobody can sign up as an admin. Adding an email that already has an account resets its password."),
-        h("div", { class: "row between" }, h("span", { class: "mono white" }, data.me), h("span", { class: "tag-top" }, "owner")),
-        ...(data.admins || []).map((e) => h("div", { class: "row between" }, h("span", { class: "mono" }, e), btn("REMOVE", () => confirm("Remove " + e + " as admin?") && act("/api/admin/admins", { email: e, action: "remove" }, "Removed."), "danger"))),
-        email, pw, btn("ADD ADMIN", () => email.value.trim() && act("/api/admin/admins", { email: email.value, password: pw.value, action: "add" }, "Admin added. Give them the email and password."), "on"))
+      h("div", { class: "card stack", style: "max-width:40rem" },
+        h("h3", {}, "Admins and what they can do"),
+        h("p", { class: "muted" }, "Tick what each person may manage. They only see the tabs you allow, and the server enforces it. You are the owner and can do everything."),
+        h("div", { class: "row between" }, h("span", { class: "mono white" }, data.me), h("span", { class: "tag-top" }, "owner"))),
+      ...(data.admins || []).map((a) => {
+        const pb = permBoxes(all, a.perms);
+        return h("div", { class: "card stack", style: "max-width:40rem" }, h("span", { class: "mono" }, a.email), ...pb.nodes,
+          h("div", { class: "row" },
+            btn("SAVE PERMISSIONS", () => act("/api/admin/admins", { email: a.email, permissions: pb.get(), action: "perms" }, "Permissions saved for " + a.email + "."), "on"),
+            btn("REMOVE ADMIN", () => confirm("Remove " + a.email + " as admin?") && act("/api/admin/admins", { email: a.email, action: "remove" }, "Removed."), "danger")));
+      }),
+      h("div", { class: "card stack", style: "max-width:40rem" }, h("h3", {}, "Add an admin"),
+        h("p", { class: "muted" }, "You create their account and give them the password, so nobody can sign up as an admin. Adding an email that already has an account resets its password."),
+        email, pw, ...newPerms.nodes,
+        btn("ADD ADMIN", () => email.value.trim() && act("/api/admin/admins", { email: email.value, password: pw.value, permissions: newPerms.get(), action: "add" }, "Admin added. Give them the email and password."), "on"))
     ];
   }
 
@@ -91,7 +108,16 @@
   }
 
   function draw() {
-    const tabs = [["gallery", "Gallery", data.gallery.filter((g) => g.status === "pending").length], ["apps", "Applications", data.applications.filter((a) => a.status === "pending").length], ["orders", "Orders", data.orders.filter((o) => o.status === "pending").length], ["announce", "Announcement", 0], ["questions", "Questions", 0]].concat(data.owner ? [["admins", "Admins", 0]] : []);
+    const has = (p) => (data.perms || []).includes(p);
+    const tabs = [].concat(
+      has("gallery") ? [["gallery", "Gallery", data.gallery.filter((g) => g.status === "pending").length]] : [],
+      has("applications") ? [["apps", "Applications", data.applications.filter((a) => a.status === "pending").length]] : [],
+      has("orders") ? [["orders", "Orders", data.orders.filter((o) => o.status === "pending").length]] : [],
+      has("announcement") ? [["announce", "Announcement", 0]] : [],
+      has("questions") ? [["questions", "Questions", 0]] : [],
+      data.owner ? [["admins", "Admins", 0]] : []);
+    if (!tabs.some((t) => t[0] === tab)) tab = tabs.length ? tabs[0][0] : "";
+    if (!tabs.length) { root.replaceChildren(h("div", { class: "card muted" }, "You don't have permission to manage anything yet. Ask the owner.")); return; }
     const view = { gallery: galleryTab, apps: appsTab, orders: ordersTab, announce: announceTab, questions: questionsTab, admins: adminsTab }[tab]();
     root.replaceChildren(
       h("div", { class: "skin-btns", style: "margin-bottom:24px" }, tabs.map(([k, label, n]) => h("button", { type: "button", class: k === tab ? "on" : "", onclick: () => { tab = k; note = ""; draw(); } }, label + (n ? " (" + n + ")" : "")))),

@@ -58,7 +58,7 @@ const DEFAULT_QUESTIONS = [
   { id: "q6", step: "Availability", step_order: 3, label: "I have read and understood the server rules", hint: "", type: "checkbox", options: [], required: true, sort: 6 },
   { id: "q7", step: "Availability", step_order: 3, label: "Link to a screenshot (optional)", hint: "Upload to imgur or similar and paste the link", type: "screenshot", options: [], required: false, sort: 7 }
 ];
-let db = { nextId: 1, gallery: [], applications: [], orders: [], announcement: null, questions: DEFAULT_QUESTIONS, users: [], admins: [], sessions: {}, chatPosts: {}, reactions: {} };
+let db = { nextId: 1, gallery: [], applications: [], orders: [], announcement: null, questions: DEFAULT_QUESTIONS, users: [], admins: [], sessions: {}, chatPosts: {}, reactions: {}, adminPerms: {} };
 try { db = Object.assign(db, JSON.parse(fs.readFileSync(DB_FILE, "utf8"))); } catch (e) {}
 let saveTimer = null;
 function save() {
@@ -149,6 +149,11 @@ function startSession(res, email) {
 }
 function endSessions(email) { for (const t of Object.keys(db.sessions)) if (db.sessions[t].email === email) delete db.sessions[t]; save(); }
 const isAdminEmail = (e) => !!e && (e === OWNER_EMAIL || db.admins.includes(e));
+// what each admin may manage. The owner can do everything; admins added before this existed keep full access.
+const ALL_PERMS = ["gallery", "applications", "orders", "announcement", "questions", "chat"];
+const permsOf = (e) => (e === OWNER_EMAIL ? ALL_PERMS.slice() : db.admins.includes(e) ? (db.adminPerms[e] || ALL_PERMS.slice()) : []);
+const can = (e, p) => permsOf(e).includes(p);
+const cleanPerms = (p) => ALL_PERMS.filter((x) => Array.isArray(p) && p.includes(x));
 
 let mcCache = { at: 0, data: null };
 const publicGallery = (g) => ({ id: g.id, title: g.title, kind: g.kind, url: g.url, thumb: g.thumb, player: g.player, caption: g.caption, votes: g.voters.length });
@@ -209,8 +214,8 @@ async function api(req, res, url) {
   // everything below needs a logged-in member
   const me = sessionOf(req);
   if (!me) return send(res, 401, { error: "Please log in." });
-  if (url === "/api/me") { const u = db.users.find((x) => x.email === me); return send(res, 200, { email: me, name: (u && u.name) || "", admin: isAdminEmail(me), owner: me === OWNER_EMAIL }); }
-  if (url.startsWith("/api/chat/") || url.startsWith("/api/discord/")) { if (await chat.handle(url, { req, res, send, body, db, save, limited, me, isAdmin: isAdminEmail(me) })) return; }
+  if (url === "/api/me") { const u = db.users.find((x) => x.email === me); return send(res, 200, { email: me, name: (u && u.name) || "", admin: permsOf(me).length > 0, perms: permsOf(me), owner: me === OWNER_EMAIL }); }
+  if (url.startsWith("/api/chat/") || url.startsWith("/api/discord/")) { if (await chat.handle(url, { req, res, send, body, db, save, limited, me, isAdmin: can(me, "chat") })) return; } // admins with the "chat" permission can delete anyone's messages
 
   // Minecraft server status, asked directly by this server and shared by everyone for a few seconds
   if (url === "/api/mc-status" && method === "GET") {
@@ -307,7 +312,8 @@ async function api(req, res, url) {
 
   // admin
   if (url.startsWith("/api/admin/")) {
-    if (!isAdminEmail(me)) return send(res, 403, { error: "Only admins can do that." });
+    if (!isAdminEmail(me) || !permsOf(me).length) return send(res, 403, { error: "Only admins can do that." });
+    const DENIED = { error: "You don't have permission to do that." };
     if (url === "/api/admin/admins") { // owner only: add / remove admin emails
       if (me !== OWNER_EMAIL) return send(res, 403, { error: "Only the owner can manage admins." });
       if (method === "POST") {
@@ -321,14 +327,22 @@ async function api(req, res, url) {
           const u = db.users.find((x) => x.email === e);
           if (u) { u.hash = hashPassword(pw); endSessions(e); } else db.users.push({ email: e, hash: hashPassword(pw), created: Date.now() });
           if (!db.admins.includes(e)) db.admins.push(e);
-        } else if (body.action === "remove") { db.admins = db.admins.filter((x) => x !== e); endSessions(e); }
+          db.adminPerms[e] = cleanPerms(body.permissions);
+        } else if (body.action === "perms") {
+          if (!db.admins.includes(e)) return send(res, 404, { error: "That person isn't an admin." });
+          db.adminPerms[e] = cleanPerms(body.permissions);
+        } else if (body.action === "remove") { db.admins = db.admins.filter((x) => x !== e); delete db.adminPerms[e]; endSessions(e); }
         save();
       }
-      return send(res, 200, { owner: OWNER_EMAIL, admins: db.admins });
+      return send(res, 200, { owner: OWNER_EMAIL, allPerms: ALL_PERMS, admins: db.admins.map((e) => ({ email: e, perms: permsOf(e) })) });
     }
     if (url === "/api/admin/data" && method === "GET")
-      return send(res, 200, { me, owner: me === OWNER_EMAIL, gallery: db.gallery.map((g) => Object.assign(publicGallery(g), { status: g.status })), applications: db.applications, orders: db.orders, announcement: db.announcement, questions: db.questions });
+      return send(res, 200, { me, owner: me === OWNER_EMAIL, perms: permsOf(me),
+        gallery: can(me, "gallery") ? db.gallery.map((g) => Object.assign(publicGallery(g), { status: g.status })) : [],
+        applications: can(me, "applications") ? db.applications : [], orders: can(me, "orders") ? db.orders : [],
+        announcement: can(me, "announcement") ? db.announcement : null, questions: can(me, "questions") ? db.questions : [] });
     if (url === "/api/admin/gallery" && method === "POST") {
+      if (!can(me, "gallery")) return send(res, 403, DENIED);
       const i = db.gallery.findIndex((g) => g.id === Number(body.id));
       if (i < 0) return send(res, 404, { error: "Not found." });
       if (body.action === "approve") db.gallery[i].status = "approved";
@@ -337,6 +351,7 @@ async function api(req, res, url) {
       save(); return send(res, 200, { ok: true });
     }
     if (url === "/api/admin/application" && method === "POST") {
+      if (!can(me, "applications")) return send(res, 403, DENIED);
       const a = db.applications.find((x) => x.id === Number(body.id));
       if (!a) return send(res, 404, { error: "Not found." });
       if (["pending", "shortlisted", "accepted", "declined"].includes(body.status)) a.status = body.status;
@@ -345,6 +360,7 @@ async function api(req, res, url) {
       save(); return send(res, 200, { ok: true });
     }
     if (url === "/api/admin/order" && method === "POST") {
+      if (!can(me, "orders")) return send(res, 403, DENIED);
       const o = db.orders.find((x) => x.id === Number(body.id));
       if (!o) return send(res, 404, { error: "Not found." });
       if (["pending", "paid", "delivered"].includes(body.status)) o.status = body.status;
@@ -352,10 +368,12 @@ async function api(req, res, url) {
       save(); return send(res, 200, { ok: true });
     }
     if (url === "/api/admin/announcement" && method === "POST") {
+      if (!can(me, "announcement")) return send(res, 403, DENIED);
       db.announcement = { message: cleanLine(body.message, 200), tag: cleanLine(body.tag, 20), link_url: httpUrl(body.link_url), link_label: cleanLine(body.link_label, 20), active: !!body.active };
       save(); return send(res, 200, { ok: true });
     }
     if (url === "/api/admin/questions" && method === "POST") {
+      if (!can(me, "questions")) return send(res, 403, DENIED);
       const TYPES_OK = ["text", "paragraph", "select", "checkbox", "screenshot"];
       const qs = (Array.isArray(body.questions) ? body.questions : []).slice(0, 40).map((q, i) => ({
         id: cleanLine(q.id, 20) || "q" + newId(), step: cleanLine(q.step, 40) || "Questions", step_order: Number(q.step_order) || 1,
@@ -395,7 +413,7 @@ http.createServer((req, res) => {
       if (page) { res.writeHead(302, { Location: "/login.html" }); return res.end(); }
       res.writeHead(401); return res.end("Please log in");
     }
-    if (base === "admin.html" && !isAdminEmail(who)) { res.writeHead(302, { Location: "/" }); return res.end(); }
+    if (base === "admin.html" && !(isAdminEmail(who) && permsOf(who).length)) { res.writeHead(302, { Location: "/" }); return res.end(); }
   }
   fs.readFile(file, (err, buf) => {
     if (err) { res.writeHead(404); return res.end("Not found"); }
