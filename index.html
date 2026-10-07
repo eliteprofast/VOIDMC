@@ -7,9 +7,10 @@
   <meta name="description" content="VSMP — a Minecraft clan wars realm. Recruit your clan, forge alliances, and wage war for control of the realm.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;500&family=Nunito:wght@400;600;700;800;900&family=Pixelify+Sans:wght@500;600;700&display=swap" rel="stylesheet">
   <script>document.documentElement.classList.add("js")</script>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="theme.css">
 </head>
 <body>
   <canvas id="bg" aria-hidden="true"></canvas>
@@ -22,33 +23,41 @@
         <a href="admin.html" id="admin-pill" class="admin-pill" hidden>ADMIN</a>
       </div>
       <div class="nav-links">
-        <a href="#players">Players</a>
+        <a href="#players">Status</a>
+        <a href="#store">Store</a>
         <a href="#gallery">Gallery</a>
         <a href="vote.html">Vote</a>
         <a href="#allies">Allies</a>
-        <a href="#store">Store</a>
         <a href="#about">Sanctuary</a>
         <a href="apply.html">Apply</a>
-        <button id="cart-open" class="cart-btn" type="button" aria-label="Open cart">🛒<span id="cart-count" hidden>0</span></button>
+        <a id="nav-discord" class="nav-join" href="#" target="_blank" rel="noopener">Join Discord ↗</a>
+        <button id="cart-open" class="cart-btn" type="button" aria-label="Open cart">CART <span id="cart-count">0</span></button>
         <button id="dc-nav" class="cart-btn dc-nav" type="button" hidden></button>
-        <button id="logout" class="cart-btn" type="button" style="font:11px var(--mono);letter-spacing:.12em;color:var(--muted)">LOG OUT</button>
+        <button id="logout" class="cart-btn" type="button">LOG OUT</button>
       </div>
     </nav>
   </header>
 
   <main>
     <section id="top" class="hero">
-      <p class="mono kicker-hero">桜 · Clan Wars Realm</p>
-      <h1>VSMP</h1>
-      <p class="lead">Recruit your clan, forge alliances, and wage war against rival factions for control of the realm.</p>
-      <div class="hero-actions">
-        <button id="copy-ip" class="btn-primary"><span id="copy-label">JOIN THE WAR</span></button>
-        <a id="discord-pill" class="pill" href="#" target="_blank" rel="noopener">
-          <span class="dot" id="hero-dot"></span>
-          <span class="light" id="discord-text">discord</span>
-          <span class="faint">·</span>
-          <span class="white" style="text-decoration:underline">open</span>
-        </a>
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <p class="season"><span class="sq"></span>VSMP · Clan Wars Realm</p>
+          <h1><span class="t1">YOUR CLAN.</span><span class="t2">YOUR WAR.</span></h1>
+          <p class="lead">Recruit your <strong>clan</strong>, forge <strong>alliances</strong>, and wage war against rival factions for <strong>control of the realm</strong>.</p>
+          <div class="hero-actions">
+            <button id="copy-ip" class="btn-primary cip" type="button"><span class="cip-top" id="copy-label">COPY SERVER IP</span><span class="cip-ip" id="hero-ip"></span></button>
+            <a class="btn-ghost" href="#store">Explore the store ↓</a>
+          </div>
+          <a id="discord-pill" class="pill" href="#" target="_blank" rel="noopener">
+            <span class="dot" id="hero-dot"></span>
+            <span class="light" id="discord-text">discord</span>
+            <span class="faint">·</span>
+            <span class="white">open</span>
+          </a>
+          <ul class="hero-badges"><li>JAVA EDITION</li><li>CLAN WARS</li><li>DISCORD COMMUNITY</li></ul>
+        </div>
+        <div class="hero-art"><div class="art-frame"><img src="sanctuary.jpg" alt="Floating voxel pagodas above pink clouds"></div></div>
       </div>
     </section>
 

@@ -5,13 +5,15 @@
   $("year").textContent = new Date().getFullYear();
   $("footer-ip").textContent = C.serverIp;
   $("discord-pill").href = C.discord;
+  $("nav-discord").href = C.discord;
+  $("hero-ip").textContent = C.serverIp.toUpperCase();
   $("apply-btn").href = C.discord;
   $("discord-text").textContent = C.discord.replace(/^https?:\/\//, "");
 
   // Copy IP + petal burst
   $("copy-ip").addEventListener("click", function () {
     navigator.clipboard && navigator.clipboard.writeText(C.serverIp);
-    $("copy-label").textContent = "COPIED TO SOUL";
+    $("copy-label").textContent = "COPIED!";
     for (let i = 0; i < 16; i++) {
       const a = (i / 16) * Math.PI * 2, r = 70 + (i % 4) * 25;
       const p = document.createElement("span");
@@ -19,7 +21,17 @@
       this.style.position = "relative"; this.appendChild(p);
       p.animate([{ transform: "translate(0,0)", opacity: 1 }, { transform: `translate(${Math.cos(a) * r}px,${Math.sin(a) * r + 30}px) rotate(${i * 47}deg) scale(.4)`, opacity: 0 }], { duration: 1200, easing: "ease-out" }).onfinish = () => p.remove();
     }
-    setTimeout(() => ($("copy-label").textContent = "JOIN THE WAR"), 2200);
+    setTimeout(() => ($("copy-label").textContent = "COPY SERVER IP"), 2200);
+  });
+
+  // headings: the first sentence in white and the rest in blue, so the two halves stand out
+  document.querySelectorAll(".head h2").forEach((h2) => {
+    const t = h2.textContent.trim(); const i = t.indexOf(". ");
+    let a, b;
+    if (i > 0) { a = t.slice(0, i + 1); b = t.slice(i + 2); } else { const w = t.split(" "); if (w.length < 2) return; b = w.pop(); a = w.join(" "); }
+    const s1 = document.createElement("span"), s2 = document.createElement("span");
+    s1.className = "t1"; s1.textContent = a; s2.className = "t2"; s2.textContent = b;
+    h2.replaceChildren(s1, s2);
   });
 
   // Allies

@@ -38,7 +38,7 @@
   function draw() {
     const lines = cart.map((l) => ({ p: catalogue.find((p) => p.id === l.id), qty: l.qty })).filter((l) => l.p);
     countEl.textContent = lines.reduce((s, l) => s + l.qty, 0);
-    countEl.hidden = !lines.length;
+    countEl.hidden = false; // the cart box always shows its number, even 0
     totalEl.textContent = totalText(totalsOf(lines));
     form.hidden = !lines.length;
     list.replaceChildren(...(lines.length ? lines.map(({ p, qty }) => h("div", { class: "cart-line" },
