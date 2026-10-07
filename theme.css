@@ -249,3 +249,14 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue); }
   .chat-fab { left: 12px; bottom: 12px; }
 }
 .lb-main, .lb-grid > * { min-width: 0; }
+
+/* ---- the emblem ---- */
+.logo { display: inline-flex; align-items: center; gap: 10px; }
+.logo-img { width: 34px; height: 34px; image-rendering: pixelated; flex: none; filter: drop-shadow(2px 2px 0 rgba(0,0,0,.45)); }
+.logo.big { flex-direction: column; gap: 14px; } .logo.big .logo-img { width: 88px; height: 88px; }
+
+.logo .wm { color: inherit; white-space: nowrap; } .logo .wm span { color: var(--blue); }
+
+/* ---- top bar: wider, and the page-anchor links drop out on mid-size screens so nothing is pushed off the edge ---- */
+.nav-inner { max-width: 90rem; }
+@media (max-width: 1500px) { .nav-links a[href="#allies"], .nav-links a[href="#about"], .nav-links a[href="#players"] { display: none; } }

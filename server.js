@@ -26,9 +26,9 @@ const OWNER_PASSWORD = process.env.OWNER_PASSWORD || ""; // password of the owne
 const STAFF_WEBHOOK = process.env.DISCORD_STAFF_WEBHOOK_URL || "";
 const TRUST_PROXY = !!process.env.TRUST_PROXY;
 
-const TYPES = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".jpg": "image/jpeg", ".png": "image/png" };
-const SAFE = ["index.html", "leaderboard.html", "lb.js", "login.html", "vote.html", "apply.html", "admin.html", "style.css", "theme.css", "config.js", "bg.js", "main.js", "ui.js", "auth.js", "chat.js", "chatmd.js", "chat.html", "reveal.js", "gallery.js", "store.js", "apply.js", "admin.js", "sanctuary.jpg"];
-const PUBLIC_FILES = ["login.html", "style.css", "theme.css", "config.js", "bg.js", "ui.js", "auth.js", "sanctuary.jpg"]; // everything else needs a login
+const TYPES = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".jpg": "image/jpeg", ".png": "image/png", ".svg": "image/svg+xml" };
+const SAFE = ["index.html", "leaderboard.html", "lb.js", "login.html", "vote.html", "apply.html", "admin.html", "style.css", "theme.css", "logo.svg", "config.js", "bg.js", "main.js", "ui.js", "auth.js", "chat.js", "chatmd.js", "chat.html", "reveal.js", "gallery.js", "store.js", "apply.js", "admin.js", "sanctuary.jpg"];
+const PUBLIC_FILES = ["login.html", "style.css", "theme.css", "logo.svg", "config.js", "bg.js", "ui.js", "auth.js", "sanctuary.jpg"]; // everything else needs a login
 
 // ---------- database (data.json) ----------
 // DATA_DIR lets a host keep the data on a persistent disk (e.g. /var/data on Render). Defaults to this folder.
