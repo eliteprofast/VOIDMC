@@ -108,7 +108,7 @@ async function run(line, ctx) {
     }
     case "orders": {
       const list = db.orders.filter((o) => args[0] !== "pending" || o.status === "pending").slice(-25);
-      return { text: list.length ? list.map((o) => `#${o.id}  ${o.status.padEnd(9)} ${o.username.padEnd(16)} $${o.total.toFixed(2)}  ${o.items.map((i) => i.qty + "x " + i.name).join(", ")}  (${ago(o.created)})`).join("\n") : "No orders." };
+      return { text: list.length ? list.map((o) => `#${o.id}  ${o.status.padEnd(9)} ${o.username.padEnd(16)} ${o.totalText || "$" + o.total.toFixed(2)}  ${o.items.map((i) => i.qty + "x " + i.name).join(", ")}  (${ago(o.created)})`).join("\n") : "No orders." };
     }
     case "order": {
       const o = db.orders.find((x) => x.id === Number(args[0]));

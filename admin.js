@@ -59,7 +59,7 @@
 
   function ordersTab() {
     return data.orders.length ? data.orders.slice().reverse().map((o) => h("div", { class: "card admin-row" },
-      h("div", { style: "flex:1;min-width:12rem" }, h("h3", {}, "#" + o.id + " · " + o.username), h("p", { class: "mono small muted" }, when(o.created) + (o.email ? " · " + o.email : "")), h("p", {}, o.items.map((i) => i.qty + "× " + i.name).join(", ")), h("p", { class: "mono white" }, "$" + o.total.toFixed(2))),
+      h("div", { style: "flex:1;min-width:12rem" }, h("h3", {}, "#" + o.id + " · " + o.username), h("p", { class: "mono small muted" }, when(o.created) + (o.email ? " · " + o.email : "")), h("p", {}, o.items.map((i) => i.qty + "× " + i.name).join(", ")), h("p", { class: "mono white" }, o.totalText || "$" + o.total.toFixed(2))),
       h("div", { class: "row" }, h("span", { class: "tag-top" }, o.status),
         ["pending", "paid", "delivered"].map((s) => btn(s.toUpperCase(), () => act("/api/admin/order", { id: o.id, status: s }, "Updated."), o.status === s ? "on" : "")),
         btn("DELETE", () => confirm("Delete this order?") && act("/api/admin/order", { id: o.id, delete: true }, "Deleted."), "danger")))) : [h("p", { class: "muted" }, "No orders yet.")];

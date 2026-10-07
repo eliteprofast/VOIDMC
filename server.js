@@ -328,21 +328,24 @@ async function api(req, res, url) {
     const username = cleanLine(body.username, 20), email = me; // the order is tied to the logged-in account
     if (!/^[A-Za-z0-9_]{1,16}$/.test(username)) return send(res, 400, { error: "Enter your Minecraft username (letters, numbers, underscore)." });
     const cfg = loadConfig();
-    const catalogue = [].concat(cfg.ranks || [], cfg.items || []);
-    const items = [];
-    let total = 0;
+    // everything that can go in the cart: ranks, plus section items that have a money price (Coin Shop items cost Coins, not money)
+    const catalogue = [].concat(cfg.ranks || [], ...(cfg.storeSections || []).map((s) => s.items || []), cfg.items || []).filter((p) => p && p.id && typeof p.price === "number" && p.price > 0);
+    const SYM = { EUR: "€", USD: "$" };
+    const items = [], totals = {};
     for (const line of Array.isArray(body.items) ? body.items.slice(0, 20) : []) {
       const p = catalogue.find((c) => c.id === line.id);
       const qty = Math.max(1, Math.min(10, parseInt(line.qty, 10) || 1));
       if (!p) continue;
-      items.push({ id: p.id, name: p.name, price: p.price, qty });
-      total += p.price * qty;
+      const cur = SYM[p.currency] ? p.currency : "USD";
+      items.push({ id: p.id, name: p.name, price: p.price, currency: cur, qty });
+      totals[cur] = Math.round(((totals[cur] || 0) + p.price * qty) * 100) / 100;
     }
     if (!items.length) return send(res, 400, { error: "Your cart is empty." });
-    const order = { id: newId(), username, email, items, total: Math.round(total * 100) / 100, status: "pending", created: Date.now() };
+    const totalText = Object.keys(SYM).filter((c) => totals[c]).map((c) => SYM[c] + totals[c].toFixed(2)).join(" + ");
+    const order = { id: newId(), username, email, items, totals, totalText, total: Object.values(totals).reduce((a, b) => a + b, 0), status: "pending", created: Date.now() };
     db.orders.push(order); save();
-    notify("🛒 New order #" + order.id + " from **" + username + "**: " + items.map((i) => i.qty + "x " + i.name).join(", ") + " — $" + order.total.toFixed(2));
-    return send(res, 200, { ok: true, id: order.id, total: order.total });
+    notify("🛒 New order #" + order.id + " from **" + username + "**: " + items.map((i) => i.qty + "x " + i.name).join(", ") + " — " + totalText);
+    return send(res, 200, { ok: true, id: order.id, total: order.total, totals, totalText });
   }
 
   // admin

@@ -361,3 +361,9 @@ video.msg-img { background: #000; }
 .term-prompt { font: 14px var(--mono); color: #57F287; }
 .term-in { flex: 1; background: transparent; border: 0; color: #fff; font: 14px var(--mono); padding: 14px 0; outline: none; box-shadow: none; }
 .term-in:focus-visible { outline: none; box-shadow: none; } .term-in:disabled { opacity: .5; }
+
+/* ---- store sections ---- */
+.store-sec { margin-top: 56px; }
+.store-sec-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; margin-bottom: 18px; }
+.store-sec-head h3 { font-size: 24px; font-weight: 800; }
+.item-name { font-family: var(--heading); font-weight: 700; font-size: 16px; }
