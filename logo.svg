@@ -1,23 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="VSMP emblem">
   <defs>
     <linearGradient id="rim" x1="0.15" y1="0.1" x2="0.85" y2="0.95">
-      <stop offset="0" stop-color="#A9DCFF"/><stop offset="0.5" stop-color="#3F86F2"/><stop offset="1" stop-color="#1A3FA6"/>
+      <stop offset="0" stop-color="#C4E8FF"/><stop offset="0.5" stop-color="#3F86F2"/><stop offset="1" stop-color="#1A3FA6"/>
     </linearGradient>
-    <radialGradient id="plate" cx="0.5" cy="0.38" r="0.75">
-      <stop offset="0" stop-color="#3B2FB8"/><stop offset="0.55" stop-color="#1A1B78"/><stop offset="1" stop-color="#0A1040"/>
+    <radialGradient id="plate" cx="0.5" cy="0.35" r="0.8">
+      <stop offset="0" stop-color="#5FB6FF"/><stop offset="0.55" stop-color="#2F6FE0"/><stop offset="1" stop-color="#1A3A9E"/>
     </radialGradient>
-    <radialGradient id="moon" cx="0.38" cy="0.35" r="0.8">
-      <stop offset="0" stop-color="#FFFBF1"/><stop offset="0.7" stop-color="#F3E6FF"/><stop offset="1" stop-color="#CDB8F0"/>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
     </radialGradient>
-    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#C9B8FF" stop-opacity="0.55"/><stop offset="1" stop-color="#C9B8FF" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="torii" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FF7A8E"/><stop offset="1" stop-color="#D2354F"/>
-    </linearGradient>
-    <linearGradient id="pillar" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#F0516A"/><stop offset="1" stop-color="#B02E4A"/>
-    </linearGradient>
     <linearGradient id="band" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#0E1A5A"/><stop offset="1" stop-color="#050A1E"/>
     </linearGradient>
@@ -26,41 +17,48 @@
   </defs>
 
   <!-- badge: rim and plate -->
-  <circle cx="256" cy="256" r="252" fill="#070C30"/>
+  <circle cx="256" cy="256" r="252" fill="#0A1245"/>
   <circle cx="256" cy="256" r="246" fill="url(#rim)"/>
-  <circle cx="256" cy="256" r="228" fill="#0A1245"/>
+  <circle cx="256" cy="256" r="228" fill="#12307F"/>
   <circle cx="256" cy="256" r="224" fill="url(#plate)"/>
-  <path d="M70 150 A210 210 0 0 1 230 48" fill="none" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="7" stroke-linecap="round"/>
+  <path d="M70 150 A210 210 0 0 1 230 48" fill="none" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="7" stroke-linecap="round"/>
 
   <g clip-path="url(#disc)">
-    <!-- stars -->
+    <circle cx="256" cy="150" r="140" fill="url(#glow)"/>
+
+    <!-- crystal cluster above the banner -->
+    <g stroke="#0A1245" stroke-width="5" stroke-linejoin="round">
+      <!-- small left -->
+      <polygon points="168,196 190,176 212,196 212,206 168,206" fill="#2F7BE0"/>
+      <polygon points="168,196 190,176 190,206 168,206" fill="#4DB5FF"/>
+      <!-- small right -->
+      <polygon points="300,196 322,176 344,196 344,206 300,206" fill="#6A2FC9"/>
+      <polygon points="300,196 322,176 322,206 300,206" fill="#9A5BEA"/>
+      <!-- big centre -->
+      <polygon points="256,40 306,92 306,206 206,206 206,92" fill="#3A62E6"/>
+      <polygon points="256,40 206,92 206,206 256,206" fill="#6CC8FF"/>
+      <polygon points="256,40 306,92 256,124 206,92" fill="#E8F8FF"/>
+    </g>
+    <path d="M222 100 L222 150" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.85"/>
+    <path d="M222 162 L222 172" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.6"/>
+
+    <!-- crystals below the banner -->
+    <g stroke="#0A1245" stroke-width="5" stroke-linejoin="round">
+      <polygon points="256,318 296,352 296,432 216,432 216,352" fill="#3A62E6"/>
+      <polygon points="256,318 216,352 216,432 256,432" fill="#6CC8FF"/>
+      <polygon points="256,318 296,352 256,376 216,352" fill="#E8F8FF"/>
+      <polygon points="170,372 196,392 196,432 144,432 144,392" fill="#2F7BE0"/>
+      <polygon points="170,372 144,392 144,432 170,432" fill="#4DB5FF"/>
+      <polygon points="342,372 368,392 368,432 316,432 316,392" fill="#6A2FC9"/>
+      <polygon points="342,372 316,392 316,432 342,432" fill="#9A5BEA"/>
+    </g>
+
+    <!-- sparkles -->
     <g fill="#FFFFFF">
-      <circle cx="110" cy="120" r="3.2" opacity="0.9"/><circle cx="400" cy="96" r="3.6"/><circle cx="148" cy="190" r="2.4" opacity="0.7"/>
-      <circle cx="430" cy="190" r="2.6" opacity="0.8"/><circle cx="196" cy="70" r="2.6" opacity="0.8"/><circle cx="330" cy="62" r="2.2" opacity="0.7"/>
-      <circle cx="88" cy="332" r="2.4" opacity="0.6"/><circle cx="440" cy="340" r="2.4" opacity="0.6"/>
-    </g>
-    <!-- the moon, with a soft glow -->
-    <circle cx="256" cy="156" r="118" fill="url(#halo)"/>
-    <circle cx="256" cy="156" r="74" fill="url(#moon)"/>
-    <g fill="#CDB8F0" opacity="0.55"><circle cx="232" cy="136" r="11"/><circle cx="278" cy="172" r="14"/><circle cx="246" cy="184" r="7"/><circle cx="288" cy="128" r="6"/></g>
-
-    <!-- sakura petals -->
-    <g>
-      <ellipse cx="118" cy="272" rx="11" ry="6.5" fill="#FF8DA1" transform="rotate(-35 118 272)"/>
-      <ellipse cx="406" cy="236" rx="10" ry="6" fill="#FFC4D6" transform="rotate(30 406 236)"/>
-      <ellipse cx="392" cy="396" rx="10" ry="6" fill="#FF8DA1" transform="rotate(-20 392 396)"/>
-      <ellipse cx="122" cy="380" rx="9" ry="5.5" fill="#FFC4D6" transform="rotate(40 122 380)"/>
-      <ellipse cx="172" cy="96" rx="9" ry="5.5" fill="#FF8DA1" transform="rotate(25 172 96)"/>
-    </g>
-
-    <!-- torii gate -->
-    <g>
-      <rect x="168" y="352" width="30" height="96" rx="4" fill="url(#pillar)"/>
-      <rect x="314" y="352" width="30" height="96" rx="4" fill="url(#pillar)"/>
-      <rect x="150" y="386" width="212" height="22" rx="4" fill="#C93A55"/>
-      <rect x="148" y="338" width="216" height="20" rx="4" fill="#E8455F"/>
-      <path d="M108 318 C176 340 336 340 404 318 L396 342 C330 356 182 356 116 342 Z" fill="url(#torii)"/>
-      <path d="M118 322 C180 338 332 338 394 322" fill="none" stroke="#FFC0CB" stroke-opacity="0.7" stroke-width="3" stroke-linecap="round"/>
+      <path d="M118 120 l5 14 14 5 -14 5 -5 14 -5 -14 -14 -5 14 -5z"/>
+      <path d="M396 110 l4 11 11 4 -11 4 -4 11 -4 -11 -11 -4 11 -4z"/>
+      <path d="M404 350 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3z"/>
+      <path d="M108 340 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3z"/>
     </g>
 
     <!-- the name banner across the middle -->
