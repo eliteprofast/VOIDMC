@@ -42,6 +42,7 @@ window.VSMP = {
       { name: "6 Netherite ingots", coins: 400 }
     ] }
   ],
+  currency: "$", // symbol shown next to leaderboard balances
   // Optional PayPal.me link, e.g. "https://paypal.me/yourname" (adds a Pay with PayPal link after ordering)
   paypalMe: ""
 };

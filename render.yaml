@@ -23,6 +23,8 @@ services:
         sync: false
       - key: RCON_PORT
         value: "25575"
+      - key: LEADERBOARD_KEY            # optional: a long secret that lets your Minecraft server send leaderboard stats (16+ characters)
+        sync: false
       - key: DISCORD_BOT_TOKEN          # the bot token for the live chat (never put it in git)
         sync: false
       - key: DISCORD_CLIENT_ID          # Discord application > OAuth2 > Client ID (for "Continue with Discord")

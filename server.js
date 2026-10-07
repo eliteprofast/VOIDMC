@@ -16,6 +16,7 @@ const chat = require("./chat-server");
 const mc = require("./mcstatus");
 const remote = require("./remote"); // optional outside storage, so data survives restarts
 const consoleCmds = require("./console-cmds");
+const lb = require("./lb-data");
 // keep the last few hundred log lines so the admin console can show them
 const LOGS = [];
 { const orig = console.log; console.log = (...a) => { LOGS.push(new Date().toISOString().slice(11, 19) + " " + a.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" ").slice(0, 300)); if (LOGS.length > 300) LOGS.shift(); orig(...a); }; } // after .env is loaded, because it reads the bot token
@@ -26,7 +27,7 @@ const STAFF_WEBHOOK = process.env.DISCORD_STAFF_WEBHOOK_URL || "";
 const TRUST_PROXY = !!process.env.TRUST_PROXY;
 
 const TYPES = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".jpg": "image/jpeg", ".png": "image/png" };
-const SAFE = ["index.html", "login.html", "vote.html", "apply.html", "admin.html", "style.css", "theme.css", "config.js", "bg.js", "main.js", "ui.js", "auth.js", "chat.js", "chatmd.js", "chat.html", "reveal.js", "gallery.js", "store.js", "apply.js", "admin.js", "sanctuary.jpg"];
+const SAFE = ["index.html", "leaderboard.html", "lb.js", "login.html", "vote.html", "apply.html", "admin.html", "style.css", "theme.css", "config.js", "bg.js", "main.js", "ui.js", "auth.js", "chat.js", "chatmd.js", "chat.html", "reveal.js", "gallery.js", "store.js", "apply.js", "admin.js", "sanctuary.jpg"];
 const PUBLIC_FILES = ["login.html", "style.css", "theme.css", "config.js", "bg.js", "ui.js", "auth.js", "sanctuary.jpg"]; // everything else needs a login
 
 // ---------- database (data.json) ----------
@@ -69,7 +70,7 @@ const DEFAULT_QUESTIONS = [
   { id: "q6", step: "Availability", step_order: 3, label: "I have read and understood the server rules", hint: "", type: "checkbox", options: [], required: true, sort: 6 },
   { id: "q7", step: "Availability", step_order: 3, label: "Link to a screenshot (optional)", hint: "Upload to imgur or similar and paste the link", type: "screenshot", options: [], required: false, sort: 7 }
 ];
-let db = { nextId: 1, gallery: [], applications: [], orders: [], announcement: null, questions: DEFAULT_QUESTIONS, users: [], admins: [], sessions: {}, chatPosts: {}, reactions: {}, adminPerms: {}, banned: [], audit: [] };
+let db = { nextId: 1, gallery: [], applications: [], orders: [], announcement: null, questions: DEFAULT_QUESTIONS, users: [], admins: [], sessions: {}, chatPosts: {}, reactions: {}, adminPerms: {}, banned: [], audit: [], leaderboard: { players: [], updatedAt: 0 } };
 try { db = Object.assign(db, JSON.parse(fs.readFileSync(DB_FILE, "utf8"))); } catch (e) {}
 let saveTimer = null;
 function save() {
@@ -168,7 +169,7 @@ function startSession(res, email) {
 function endSessions(email) { for (const t of Object.keys(db.sessions)) if (db.sessions[t].email === email) delete db.sessions[t]; save(); }
 const isAdminEmail = (e) => !!e && (e === OWNER_EMAIL || db.admins.includes(e));
 // what each admin may manage. The owner can do everything; admins added before this existed keep full access.
-const ALL_PERMS = ["gallery", "applications", "orders", "announcement", "questions", "chat", "console"];
+const ALL_PERMS = ["gallery", "applications", "orders", "announcement", "questions", "chat", "console", "leaderboard"];
 const permsOf = (e) => (e === OWNER_EMAIL ? ALL_PERMS.slice() : db.admins.includes(e) ? (db.adminPerms[e] || ALL_PERMS.filter((p) => p !== "console")) : []);
 const can = (e, p) => permsOf(e).includes(p);
 const cleanPerms = (p) => ALL_PERMS.filter((x) => Array.isArray(p) && p.includes(x));
@@ -261,6 +262,17 @@ async function api(req, res, url) {
     }
     return bad("Unknown action.", 404);
   }
+  if (url === "/api/leaderboard/update" && method === "POST") {
+    const key = String(process.env.LEADERBOARD_KEY || "").trim();
+    if (key.length < 16) return send(res, 503, { error: "Automatic updates are off. Set LEADERBOARD_KEY (at least 16 characters) on the site." });
+    if (limited("lbk:" + ip, 120, 60000)) return send(res, 429, { error: "Too many requests." });
+    const sha = (v) => crypto.createHash("sha256").update(String(v)).digest();
+    const given = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+    if (!crypto.timingSafeEqual(sha(given), sha(key))) { limited("lbf:" + ip, 10, 600000); if (limited("lbf2:" + ip, 10, 600000)) return send(res, 429, { error: "Too many wrong keys." }); return send(res, 401, { error: "Wrong key." }); }
+    const r = lb.upsert(db, body.players, Date.now()); save();
+    return send(res, 200, Object.assign({ ok: true }, r));
+  }
+
   // everything below needs a logged-in member
   const me = sessionOf(req);
   if (!me) return send(res, 401, { error: "Please log in." });
@@ -269,6 +281,15 @@ async function api(req, res, url) {
 
   // Minecraft server status, asked directly by this server and shared by everyone for a few seconds
   if (url === "/api/mc-status" && method === "GET") return send(res, 200, await mcStatus());
+
+  if (url === "/api/leaderboard" && method === "GET") {
+    const q = new URL(req.url, "http://x").searchParams;
+    return send(res, 200, lb.list(db, { sort: q.get("sort"), q: q.get("q"), limit: q.get("limit"), offset: q.get("offset") }, Date.now()));
+  }
+  if (url === "/api/leaderboard/player" && method === "GET") {
+    const p = lb.one(db, new URL(req.url, "http://x").searchParams.get("name") || "", Date.now());
+    return p ? send(res, 200, p) : send(res, 404, { error: "No such player on the leaderboard." });
+  }
 
   // public reads
   if (url === "/api/announcement" && method === "GET") return send(res, 200, db.announcement && db.announcement.active && db.announcement.message ? db.announcement : {});
@@ -394,6 +415,16 @@ async function api(req, res, url) {
         dropImage: (g) => { if (g && g.file && UPLOAD_RE.test(g.file) && !db.gallery.some((x) => x.file === g.file)) { fs.unlink(path.join(UPLOAD_DIR, path.basename(g.file)), () => {}); if (remote.enabled) remote.delImage(path.basename(g.file)); } }
       }).catch((e) => ({ text: "That command failed: " + (e && e.message ? e.message : "unknown error"), error: true }));
       return send(res, 200, r);
+    }
+    if (url === "/api/admin/leaderboard") {
+      if (!can(me, "leaderboard")) return send(res, 403, DENIED);
+      if (method === "POST") {
+        if (body.action === "upsert") { const r = lb.upsert(db, body.rows, Date.now()); save(); return send(res, 200, Object.assign({ ok: true }, r)); }
+        if (body.action === "delete") { const n = lb.remove(db, body.name); save(); return send(res, 200, { ok: true, removed: n }); }
+        if (body.action === "clear") { db.leaderboard = { players: [], updatedAt: 0 }; save(); return send(res, 200, { ok: true }); }
+        return send(res, 400, { error: "Unknown action." });
+      }
+      return send(res, 200, Object.assign(lb.list(db, { sort: "balance", limit: 200 }, Date.now()), { keySet: String(process.env.LEADERBOARD_KEY || "").trim().length >= 16 }));
     }
     if (url === "/api/admin/data" && method === "GET")
       return send(res, 200, { me, owner: me === OWNER_EMAIL, perms: permsOf(me),

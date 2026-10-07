@@ -1,6 +1,7 @@
 // Admin console: a small set of safe, named commands. It is NOT a shell, so it can never run arbitrary programs on the server.
 // Each command says who may use it. ctx supplies what the site already has (database, helpers), so this file stays independent.
 const rcon = require("./rcon");
+const lbData = require("./lb-data");
 
 const NAME_RE = /^[A-Za-z0-9_]{1,16}$/;
 const oneLine = (s, n) => String(s || "").replace(/[\r\n\u0000-\u001f]+/g, " ").trim().slice(0, n);
@@ -21,6 +22,7 @@ const COMMANDS = {
   order:     { who: "orders", usage: "order <id> pending|paid|delivered", about: "update an order's status" },
   apps:      { who: "applications", usage: "apps [pending]", about: "list staff applications" },
   diag:      { who: "owner", usage: "diag", about: "which settings the site can see (names only, never values)" },
+  lb:        { who: "leaderboard", usage: "lb [top] | lb set <name> balance=N kills=N deaths=N playtime=H clan=X | lb remove <name>", about: "view or change the leaderboard" },
   logs:      { who: "owner", usage: "logs [count]", about: "recent server log lines" },
   users:     { who: "owner", usage: "users [search]", about: "list site accounts" },
   user:      { who: "owner", usage: "user <email>", about: "details for one account" },
@@ -133,6 +135,18 @@ async function run(line, ctx) {
       const odd = Object.keys(env).filter((k) => /rcon|discord|supabase|upstash|owner|minecraft|mc_/i.test(k) && !known.has(k));
       rows.push("", "Save folder in use: " + (ctx.dataDir || "?") + (ctx.dataDirNote ? "\n  WARNING: " + ctx.dataDirNote : ""));
       return { text: rows.join("\n") + (odd.length ? "\n\nOther settings with related names (is one of these a misspelling?):\n  " + odd.join("\n  ") : "") + "\n\nOnly names and lengths are shown. Values are never displayed." };
+    }
+    case "lb": {
+      const sub = (args[0] || "top").toLowerCase();
+      if (sub === "top") { const d = lbData.list(db, { sort: "balance", limit: 10 }, Date.now()); return { text: d.players.length ? d.players.map((p) => "#" + p.rank + " " + p.name.padEnd(16) + " bal " + p.balance + "  K " + p.kills + "  D " + p.deaths + (p.clan ? "  [" + p.clan + "]" : "")).join("\n") + "\n(" + d.count + " players)" : "The leaderboard is empty." }; }
+      if (sub === "remove") { const n = lbData.remove(db, args[1] || ""); save(); audit("lb remove " + (args[1] || "")); return n ? { text: "Removed " + args[1] + "." } : bad("No player with that name."); }
+      if (sub === "set") {
+        const row = { name: args[1] || "" };
+        for (const kv of args.slice(2)) { const m = /^(balance|kills|deaths|playtime|clan)=(.*)$/i.exec(kv); if (!m) return bad("Use key=value pairs, for example: lb set Steve balance=5000 kills=12"); row[m[1].toLowerCase()] = m[2]; }
+        const r = lbData.upsert(db, [row], Date.now()); save(); audit("lb set " + row.name);
+        return r.updated ? { text: "Saved " + row.name + "." } : bad("Refused: " + r.rejected.join(", "));
+      }
+      return bad("Usage: lb | lb set <name> balance=N kills=N deaths=N playtime=H clan=X | lb remove <name>");
     }
     case "logs": {
       const n = Math.min(200, Math.max(1, parseInt(args[0], 10) || 40));

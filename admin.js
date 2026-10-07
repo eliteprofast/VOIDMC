@@ -75,6 +75,40 @@
       btn("SAVE", () => act("/api/admin/announcement", { message: f.message.value, tag: f.tag.value, link_url: f.url.value, link_label: f.label.value, active: f.active.checked }, "Announcement saved."), "on"))];
   }
 
+  // ----- leaderboard: add or fix players by hand, paste a list, and see how the server can send updates itself -----
+  let lbCache = null;
+  function leaderboardTab() {
+    if (!lbCache) { call("/api/admin/leaderboard").then((d) => { lbCache = d; draw(); }).catch((e) => toast(e.message, true)); return [h("p", { class: "muted" }, "Loading the leaderboard…")]; }
+    const reload = () => { lbCache = null; };
+    const f = {};
+    ["name", "clan", "balance", "kills", "deaths", "playtime"].forEach((k) => (f[k] = h("input", { placeholder: { name: "Minecraft name", clan: "Clan (optional)", balance: "Balance, e.g. 148240900", kills: "Kills", deaths: "Deaths", playtime: "Playtime in hours" }[k], maxlength: 24, inputmode: k === "name" || k === "clan" ? "text" : "decimal" })));
+    const csv = h("textarea", { rows: 6, placeholder: "name,clan,balance,kills,deaths,playtime\nDrDonut,DONUT,148240900,84291,12488,2847\nClownPierce,CLOWNS,121600000,79882,10940,2100" });
+    const fill = (p) => { f.name.value = p.name; f.clan.value = p.clan; f.balance.value = p.balance; f.kills.value = p.kills; f.deaths.value = p.deaths; f.playtime.value = p.playtime; f.name.scrollIntoView({ block: "center" }); };
+    const importCsv = () => {
+      const rows = csv.value.split(/\r?\n/).map((l) => l.split(/[,\t;]/).map((x) => x.trim())).filter((c) => c[0] && c[0].toLowerCase() !== "name").map((c) => ({ name: c[0], clan: c[1], balance: c[2], kills: c[3], deaths: c[4], playtime: c[5] }));
+      if (!rows.length) return toast("Paste at least one line first.", true);
+      reload(); act("/api/admin/leaderboard", { action: "upsert", rows }, rows.length + " line(s) sent. Check the table below for any that were refused.");
+    };
+    const origin = location.origin;
+    return [
+      h("div", { class: "card stack", style: "max-width:46rem" }, h("h3", {}, "Add or update a player"),
+        h("p", { class: "muted" }, "Type a Minecraft name and any numbers you have. If the player is already listed, only the boxes you fill in change."),
+        ...Object.values(f),
+        btn("SAVE PLAYER", () => { const row = {}; Object.keys(f).forEach((k) => { if (f[k].value.trim() !== "") row[k] = f[k].value.trim(); }); if (!row.name) return toast("Enter a Minecraft name.", true); reload(); act("/api/admin/leaderboard", { action: "upsert", rows: [row] }, "Saved " + row.name + "."); }, "on")),
+      h("div", { class: "card stack", style: "max-width:46rem" }, h("h3", {}, "Paste a list"),
+        h("p", { class: "muted" }, "One player per line: name, clan, balance, kills, deaths, playtime. Commas, tabs or semicolons all work, and a header line is fine."), csv, btn("IMPORT LIST", importCsv, "on")),
+      h("div", { class: "card stack", style: "max-width:46rem" }, h("h3", {}, "Let the server send updates by itself"),
+        h("p", { class: "muted" }, lbCache.keySet ? "Automatic updates are ON. Your server (a plugin or script) sends the numbers here, using the secret key you set as LEADERBOARD_KEY in Render:" : "Automatic updates are OFF. In Render → Environment add LEADERBOARD_KEY (any long secret, at least 16 characters), save, then your server can send the numbers here:"),
+        h("pre", { class: "md-pre" }, "POST " + origin + "/api/leaderboard/update\nAuthorization: Bearer <your LEADERBOARD_KEY>\nContent-Type: application/json\n\n{\"players\":[{\"name\":\"DrDonut\",\"clan\":\"DONUT\",\"balance\":148240900,\"kills\":84291,\"deaths\":12488,\"playtime\":2847}]}"),
+        h("p", { class: "mono small muted" }, "Up to 100 players per request. Names are Minecraft names; only the fields you send are changed.")),
+      h("div", { class: "card stack", style: "max-width:60rem" }, h("h3", {}, "Players (" + lbCache.count + ")"),
+        lbCache.players.length ? h("div", { class: "stack" }, lbCache.players.map((p) => h("div", { class: "row between" },
+          h("span", { class: "mono small" }, "#" + p.rank + "  " + p.name + (p.clan ? "  [" + p.clan + "]" : "") + "  bal " + p.balance + "  K " + p.kills + "  D " + p.deaths + "  " + p.playtime + "h"),
+          h("span", { class: "row" }, btn("EDIT", () => fill(p)), btn("REMOVE", () => confirm("Remove " + p.name + " from the leaderboard?") && (reload(), act("/api/admin/leaderboard", { action: "delete", name: p.name }, "Removed " + p.name + "."))), "danger")))) : h("p", { class: "muted" }, "Nobody yet."),
+        lbCache.players.length ? btn("CLEAR THE WHOLE LEADERBOARD", () => confirm("Remove ALL players from the leaderboard?") && (reload(), act("/api/admin/leaderboard", { action: "clear" }, "Leaderboard cleared.")), "danger") : null)
+    ].filter(Boolean);
+  }
+
   // ----- console: a terminal-style box. Built once, so what you typed is still there when you come back to this tab -----
   let term = null;
   function consoleTab() {
@@ -108,7 +142,7 @@
     return [wrap];
   }
 
-  const PERM_LABELS = { gallery: "Gallery: approve, hide and delete moments", applications: "Staff applications: read and decide", orders: "Orders: mark paid and delivered", announcement: "Announcement bar", questions: "Edit the application questions", chat: "Chat moderator: delete anyone's messages", console: "Console: run commands, including Minecraft server commands (powerful, give with care)" };
+  const PERM_LABELS = { gallery: "Gallery: approve, hide and delete moments", applications: "Staff applications: read and decide", orders: "Orders: mark paid and delivered", announcement: "Announcement bar", questions: "Edit the application questions", chat: "Chat moderator: delete anyone's messages", leaderboard: "Leaderboard: add, import and remove players", console: "Console: run commands, including Minecraft server commands (powerful, give with care)" };
   function permBoxes(allPerms, have) {
     const boxes = {};
     const nodes = allPerms.map((p) => { boxes[p] = h("input", { type: "checkbox", checked: have.includes(p) }); return h("label", { class: "check" }, boxes[p], " " + (PERM_LABELS[p] || p)); });
@@ -174,11 +208,12 @@
       has("orders") ? [["orders", "Orders", data.orders.filter((o) => o.status === "pending").length]] : [],
       has("announcement") ? [["announce", "Announcement", 0]] : [],
       has("questions") ? [["questions", "Questions", 0]] : [],
+      has("leaderboard") ? [["leaderboard", "Leaderboard", 0]] : [],
       has("console") ? [["console", "Console", 0]] : [],
       data.owner ? [["admins", "Admins", 0]] : []);
     if (!tabs.some((t) => t[0] === tab)) tab = tabs.length ? tabs[0][0] : "";
     if (!tabs.length) { root.replaceChildren(h("div", { class: "card muted" }, "You don't have permission to manage anything yet. Ask the owner.")); return; }
-    const view = { gallery: galleryTab, apps: appsTab, orders: ordersTab, announce: announceTab, questions: questionsTab, console: consoleTab, admins: adminsTab }[tab]();
+    const view = { gallery: galleryTab, apps: appsTab, orders: ordersTab, announce: announceTab, questions: questionsTab, leaderboard: leaderboardTab, console: consoleTab, admins: adminsTab }[tab]();
     root.replaceChildren(...[
       h("div", { class: "skin-btns", style: "margin-bottom:24px" }, tabs.map(([k, label, n]) => h("button", { type: "button", class: k === tab ? "on" : "", onclick: () => { tab = k; note = ""; draw(); } }, label + (n ? " (" + n + ")" : "")))),
       note ? h("p", { class: "mono small white", style: "margin-bottom:16px" }, note) : null,
