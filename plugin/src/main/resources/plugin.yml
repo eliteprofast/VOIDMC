@@ -1,0 +1,15 @@
+name: VSMPStats
+main: net.vsmp.stats.VsmpStats
+version: 1.0.0
+api-version: "1.20"
+description: Sends player balance, kills, deaths and playtime to the VSMP website leaderboard.
+author: VSMP
+softdepend: [Vault, PlaceholderAPI, Essentials]
+commands:
+  vsmpstats:
+    description: Check or trigger the VSMP leaderboard update.
+    usage: /vsmpstats [status|sync|reload]
+permissions:
+  vsmpstats.admin:
+    description: Use /vsmpstats
+    default: op

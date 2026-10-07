@@ -109,6 +109,7 @@
       h("div", { class: "card stack", style: "max-width:46rem" }, h("h3", {}, "Paste a list"),
         h("p", { class: "muted" }, "One player per line: name, clan, balance, kills, deaths, playtime. Commas, tabs or semicolons all work, and a header line is fine."), csv, btn("IMPORT LIST", importCsv, "on")),
       h("div", { class: "card stack", style: "max-width:46rem" }, h("h3", {}, "Let the server send updates by itself"),
+        h("p", { class: "muted" }, "Easiest: install the VSMPStats plugin on your Minecraft server (guide: plugin/README.md in your GitHub repository). It sends these numbers for you. Or send them yourself:"),
         h("p", { class: "muted" }, lbCache.keySet ? "Automatic updates are ON. Your server (a plugin or script) sends the numbers here, using the secret key you set as LEADERBOARD_KEY in Render:" : "Automatic updates are OFF. In Render → Environment add LEADERBOARD_KEY (any long secret, at least 16 characters), save, then your server can send the numbers here:"),
         h("pre", { class: "md-pre" }, "POST " + origin + "/api/leaderboard/update\nAuthorization: Bearer <your LEADERBOARD_KEY>\nContent-Type: application/json\n\n{\"players\":[{\"name\":\"DrDonut\",\"clan\":\"DONUT\",\"balance\":148240900,\"kills\":84291,\"deaths\":12488,\"playtime\":2847}]}"),
         h("p", { class: "mono small muted" }, "Up to 100 players per request. Names are Minecraft names; only the fields you send are changed.")),

@@ -1,0 +1,24 @@
+# VSMPStats: keeps the website leaderboard up to date by itself.
+
+# The update link of your website. Use your own site address.
+url: "https://YOUR-SITE.onrender.com/api/leaderboard/update"
+
+# The secret key. It must be EXACTLY the same as LEADERBOARD_KEY in your website's settings
+# (at least 16 characters). Never share it.
+key: "PUT-YOUR-LEADERBOARD_KEY-HERE"
+
+# How often to send the numbers, in minutes.
+interval-minutes: 5
+
+# Only players who joined in the last N days are sent (0 = everyone who ever joined).
+active-days: 30
+
+# At most this many players are sent (the website keeps up to 200). The richest come first.
+max-players: 150
+
+# How many players are read per game tick. Lower this if you ever notice lag when it runs.
+players-per-tick: 15
+
+# Optional: show a clan on the leaderboard. Needs PlaceholderAPI and a clans plugin.
+# Example for SimpleClans: "%simpleclans_clan_name%". Leave empty for no clan.
+clan-placeholder: ""

@@ -1,0 +1,29 @@
+name: Build the VSMPStats plugin
+
+# Builds plugin/VSMPStats.jar on GitHub's computers, so you do not need Java installed.
+# It runs by itself when the plugin folder changes, or when you press "Run workflow" on the Actions page.
+on:
+  push:
+    paths:
+      - "plugin/**"
+      - ".github/workflows/build-plugin.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Build the jar
+        run: mvn -B -f plugin/pom.xml package
+      - name: Keep the jar so you can download it
+        uses: actions/upload-artifact@v4
+        with:
+          name: VSMPStats-plugin
+          path: plugin/target/VSMPStats.jar
+          if-no-files-found: error
