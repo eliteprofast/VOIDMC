@@ -1,29 +1,29 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Leaderboard — VSMP</title>
+  <title>Leaderboard â€” VSMP</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;500&family=Nunito:wght@400;600;700;800;900&family=Pixelify+Sans:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="theme.css">
-  <link rel="icon" type="image/svg+xml" href="logo.svg?v=4">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4">
+  <link rel="icon" type="image/svg+xml" href="logo.svg?v=5">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=5">
 </head>
 <body>
   <canvas id="bg" aria-hidden="true"></canvas>
   <header class="nav">
     <nav class="nav-inner">
-      <div class="logo-wrap"><a href="index.html" class="logo"><img class="logo-img" src="logo.svg?v=4" alt="" width="34" height="34"><span class="wm">VS<span>MP</span></span></a></div>
+      <div class="logo-wrap"><a href="index.html" class="logo"><img class="logo-img" src="logo.svg?v=5" alt="" width="34" height="34"><span class="wm">VS<span>MP</span></span></a></div>
       <div class="nav-links">
         <a href="index.html">Home</a>
         <a href="index.html#store">Store</a>
         <a href="vote.html">Vote</a>
         <a href="apply.html">Apply</a>
         <a class="nav-lb on" href="leaderboard.html">Leaderboard</a>
-        <a id="nav-discord" class="nav-join" href="#" target="_blank" rel="noopener">Join Discord ↗</a>
+        <a id="nav-discord" class="nav-join" href="#" target="_blank" rel="noopener">Join Discord â†—</a>
       </div>
     </nav>
   </header>
@@ -33,9 +33,9 @@
       <p class="kicker">VSMP network statistics</p>
       <h1 class="lb-title">Player <span>leaderboard.</span></h1>
       <div class="lb-chips">
-        <span class="lb-chip"><b id="lb-count">–</b> players tracked</span>
-        <span class="lb-chip"><i class="dot" id="lb-dot"></i><b id="lb-online">–</b> online now</span>
-        <span class="lb-chip">updated <b id="lb-updated">–</b></span>
+        <span class="lb-chip"><b id="lb-count">â€“</b> players tracked</span>
+        <span class="lb-chip"><i class="dot" id="lb-dot"></i><b id="lb-online">â€“</b> online now</span>
+        <span class="lb-chip">updated <b id="lb-updated">â€“</b></span>
       </div>
     </div>
 
@@ -51,7 +51,7 @@
           <input id="lb-search" type="search" maxlength="32" placeholder="Search player or clan" aria-label="Search player or clan" autocomplete="off">
         </div>
         <div class="lb-row lb-head-row"><span>#</span><span>Player</span><span class="r">Balance</span><span class="r hide-sm">24h %</span><span class="r">K/D</span><span class="r hide-sm">Kills</span></div>
-        <div id="lb-rows" class="lb-rows"><p class="empty mono">Loading…</p></div>
+        <div id="lb-rows" class="lb-rows"><p class="empty mono">Loadingâ€¦</p></div>
         <button type="button" id="lb-more" class="ghost lb-more" hidden>SHOW MORE</button>
       </section>
 
@@ -59,18 +59,18 @@
         <section class="card lb-profile" aria-live="polite">
           <div class="lb-who">
             <img id="lb-av" class="lb-av" alt="" width="56" height="56">
-            <div><h2 id="lb-name">–</h2><p class="mono small muted" id="lb-clan"></p></div>
+            <div><h2 id="lb-name">â€“</h2><p class="mono small muted" id="lb-clan"></p></div>
             <span class="lb-rank" id="lb-rank"></span>
           </div>
-          <div class="lb-big"><span id="lb-bal">–</span><em id="lb-chg"></em></div>
+          <div class="lb-big"><span id="lb-bal">â€“</span><em id="lb-chg"></em></div>
           <div class="lb-stats">
-            <div><span>Kills</span><b id="lb-k">–</b></div><div><span>Deaths</span><b id="lb-d">–</b></div><div><span>K/D</span><b id="lb-kd">–</b></div><div><span>Playtime</span><b id="lb-pt">–</b></div>
+            <div><span>Kills</span><b id="lb-k">â€“</b></div><div><span>Deaths</span><b id="lb-d">â€“</b></div><div><span>K/D</span><b id="lb-kd">â€“</b></div><div><span>Playtime</span><b id="lb-pt">â€“</b></div>
           </div>
           <div class="lb-metric" id="lb-metric"><button type="button" class="on" data-m="balance">Balance</button><button type="button" data-m="kills">Kills</button></div>
           <div class="lb-chart"><canvas id="lb-chart"></canvas><p id="lb-chart-msg" class="mono small muted"></p></div>
         </section>
         <section class="card lb-pulse"><p class="label mono">Network pulse</p><div id="lb-pulse"></div></section>
-        <section class="card lb-clans"><p class="label mono">Top clans · by kills</p><div id="lb-clans"></div></section>
+        <section class="card lb-clans"><p class="label mono">Top clans Â· by kills</p><div id="lb-clans"></div></section>
       </aside>
     </div>
   </main>
