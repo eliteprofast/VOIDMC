@@ -20,7 +20,7 @@
     let t = document.getElementById("toast");
     if (!t) { t = document.createElement("div"); t.id = "toast"; t.setAttribute("role", "status"); document.body.append(t); }
     t.textContent = msg; t.className = "toast show" + (bad ? " bad" : "");
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.className = "toast"), 3500);
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.className = "toast"), bad ? 9000 : 3500);
   }
   async function act(url, body, okMsg) {
     const y = window.scrollY;
@@ -77,6 +77,17 @@
 
   // ----- leaderboard: add or fix players by hand, paste a list, and see how the server can send updates itself -----
   let lbCache = null;
+  // sends a leaderboard change and reports what really happened, including anything the server refused
+  async function lbSend(body, okMsg) {
+    const y = window.scrollY;
+    try {
+      const d = await call("/api/admin/leaderboard", body);
+      lbCache = null; await start();
+      if (d.rejected && d.rejected.length) toast((d.updated ? d.updated + " saved. " : "NOT saved. ") + "Refused: " + d.rejected.slice(0, 3).join("  |  "), true);
+      else toast(okMsg);
+    } catch (e) { toast(e.message, true); }
+    window.scrollTo(0, y);
+  }
   function leaderboardTab() {
     if (!lbCache) { call("/api/admin/leaderboard").then((d) => { lbCache = d; draw(); }).catch((e) => toast(e.message, true)); return [h("p", { class: "muted" }, "Loading the leaderboard…")]; }
     const reload = () => { lbCache = null; };
@@ -87,14 +98,14 @@
     const importCsv = () => {
       const rows = csv.value.split(/\r?\n/).map((l) => l.split(/[,\t;]/).map((x) => x.trim())).filter((c) => c[0] && c[0].toLowerCase() !== "name").map((c) => ({ name: c[0], clan: c[1], balance: c[2], kills: c[3], deaths: c[4], playtime: c[5] }));
       if (!rows.length) return toast("Paste at least one line first.", true);
-      reload(); act("/api/admin/leaderboard", { action: "upsert", rows }, rows.length + " line(s) sent. Check the table below for any that were refused.");
+      reload(); lbSend({ action: "upsert", rows }, rows.length + " line(s) sent. Check the table below for any that were refused.");
     };
     const origin = location.origin;
     return [
       h("div", { class: "card stack", style: "max-width:46rem" }, h("h3", {}, "Add or update a player"),
         h("p", { class: "muted" }, "Type a Minecraft name and any numbers you have. If the player is already listed, only the boxes you fill in change."),
         ...Object.values(f),
-        btn("SAVE PLAYER", () => { const row = {}; Object.keys(f).forEach((k) => { if (f[k].value.trim() !== "") row[k] = f[k].value.trim(); }); if (!row.name) return toast("Enter a Minecraft name.", true); reload(); act("/api/admin/leaderboard", { action: "upsert", rows: [row] }, "Saved " + row.name + "."); }, "on")),
+        btn("SAVE PLAYER", () => { const row = {}; Object.keys(f).forEach((k) => { if (f[k].value.trim() !== "") row[k] = f[k].value.trim(); }); if (!row.name) return toast("Enter a Minecraft name.", true); reload(); lbSend({ action: "upsert", rows: [row] }, "Saved " + row.name + "."); }, "on")),
       h("div", { class: "card stack", style: "max-width:46rem" }, h("h3", {}, "Paste a list"),
         h("p", { class: "muted" }, "One player per line: name, clan, balance, kills, deaths, playtime. Commas, tabs or semicolons all work, and a header line is fine."), csv, btn("IMPORT LIST", importCsv, "on")),
       h("div", { class: "card stack", style: "max-width:46rem" }, h("h3", {}, "Let the server send updates by itself"),
@@ -104,8 +115,8 @@
       h("div", { class: "card stack", style: "max-width:60rem" }, h("h3", {}, "Players (" + lbCache.count + ")"),
         lbCache.players.length ? h("div", { class: "stack" }, lbCache.players.map((p) => h("div", { class: "row between" },
           h("span", { class: "mono small" }, "#" + p.rank + "  " + p.name + (p.clan ? "  [" + p.clan + "]" : "") + "  bal " + p.balance + "  K " + p.kills + "  D " + p.deaths + "  " + p.playtime + "h"),
-          h("span", { class: "row" }, btn("EDIT", () => fill(p)), btn("REMOVE", () => confirm("Remove " + p.name + " from the leaderboard?") && (reload(), act("/api/admin/leaderboard", { action: "delete", name: p.name }, "Removed " + p.name + "."))), "danger")))) : h("p", { class: "muted" }, "Nobody yet."),
-        lbCache.players.length ? btn("CLEAR THE WHOLE LEADERBOARD", () => confirm("Remove ALL players from the leaderboard?") && (reload(), act("/api/admin/leaderboard", { action: "clear" }, "Leaderboard cleared.")), "danger") : null)
+          h("span", { class: "row" }, btn("EDIT", () => fill(p)), btn("REMOVE", () => confirm("Remove " + p.name + " from the leaderboard?") && (reload(), lbSend({ action: "delete", name: p.name }, "Removed " + p.name + "."))), "danger")))) : h("p", { class: "muted" }, "Nobody yet."),
+        lbCache.players.length ? btn("CLEAR THE WHOLE LEADERBOARD", () => confirm("Remove ALL players from the leaderboard?") && (reload(), lbSend({ action: "clear" }, "Leaderboard cleared.")), "danger") : null)
     ].filter(Boolean);
   }
 

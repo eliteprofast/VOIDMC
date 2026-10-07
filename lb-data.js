@@ -1,11 +1,16 @@
 // Leaderboard data: players with a few stats, a small history for the chart, and the totals shown on the page.
-const NAME_RE = /^[A-Za-z0-9_]{1,16}$/;
+// Java names are 3-16 letters/numbers/_ ; Bedrock names can have spaces and a leading dot, so allow those too (up to 24 characters)
+const NAME_RE = /^[A-Za-z0-9_.][A-Za-z0-9_. ]{0,23}$/;
 const MAX_PLAYERS = 200, MAX_HISTORY = 48, SNAPSHOT_MS = 3600000;
 
+// accepts 5000, "5,000", "$5000", "1.5k", "5M", "2.3B", "1T"
+const MULT = { k: 1e3, m: 1e6, b: 1e9, t: 1e12 };
 const num = (v, max, int) => {
   if (v === undefined || v === null || v === "") return undefined;
-  const n = Number(String(v).replace(/[,\s$€]/g, ""));
-  if (!isFinite(n) || n < 0) return null;
+  const m = /^(\d+(?:\.\d+)?)([kmbt]?)$/i.exec(String(v).replace(/[,\s$€£]/g, ""));
+  if (!m) return null;
+  const n = Number(m[1]) * (m[2] ? MULT[m[2].toLowerCase()] : 1);
+  if (!isFinite(n)) return null;
   const c = Math.min(n, max);
   return int ? Math.floor(c) : Math.round(c * 100) / 100;
 };
@@ -14,11 +19,11 @@ const word = (v, n) => (v === undefined ? undefined : String(v).replace(/[^\w +\
 // Cleans one incoming row. Returns { row } with only the fields that were given, or { error }.
 function cleanRow(r) {
   if (!r || typeof r !== "object") return { error: "not an object" };
-  const name = String(r.name || "").trim();
-  if (!NAME_RE.test(name)) return { error: "bad name" };
+  const name = String(r.name || "").replace(/\s+/g, " ").trim();
+  if (!NAME_RE.test(name)) return { error: "the name must be 1-24 characters: letters, numbers, spaces, dots or _" };
   const row = { name };
   const fields = { balance: num(r.balance, 1e15), kills: num(r.kills, 1e9, true), deaths: num(r.deaths, 1e9, true), playtime: num(r.playtime, 1e6) };
-  for (const k of Object.keys(fields)) { if (fields[k] === null) return { error: "bad " + k }; if (fields[k] !== undefined) row[k] = fields[k]; }
+  for (const k of Object.keys(fields)) { if (fields[k] === null) return { error: k + " must be a plain number such as 5000000, or 5M, 1.5k, 2B" }; if (fields[k] !== undefined) row[k] = fields[k]; }
   const clan = word(r.clan, 16); if (clan !== undefined) row.clan = clan;
   return { row };
 }
@@ -31,7 +36,7 @@ function upsert(db, rows, now) {
   let updated = 0; const rejected = [];
   for (const raw of (Array.isArray(rows) ? rows : []).slice(0, 150)) {
     const c = cleanRow(raw);
-    if (c.error) { rejected.push((raw && raw.name ? String(raw.name).slice(0, 16) : "?") + ": " + c.error); continue; }
+    if (c.error) { rejected.push((raw && raw.name ? String(raw.name).slice(0, 24) : "(no name)") + ": " + c.error); continue; }
     let p = b.players.find((x) => x.name.toLowerCase() === c.row.name.toLowerCase());
     if (!p) { if (b.players.length >= MAX_PLAYERS) { rejected.push(c.row.name + ": list is full"); continue; } p = { name: c.row.name, clan: "", balance: 0, kills: 0, deaths: 0, playtime: 0, h: [] }; b.players.push(p); }
     Object.assign(p, c.row, { name: c.row.name });
