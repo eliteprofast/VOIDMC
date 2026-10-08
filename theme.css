@@ -265,3 +265,34 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue); }
 /* ---- top bar: wider, and the page-anchor links drop out on mid-size screens so nothing is pushed off the edge ---- */
 .nav-inner { max-width: 90rem; }
 @media (max-width: 1500px) { .nav-links a[href="#allies"], .nav-links a[href="#about"], .nav-links a[href="#players"] { display: none; } }
+
+/* ---- crystal PvP reel behind the live-status section ----
+   Full-bleed like the hero, cropped to cover the section, and dimmed hard on the left so
+   the headings keep their contrast. The still navy wash shows until a clip actually plays. */
+#players { position: relative; isolation: isolate; }
+.pvp-bg {
+  position: absolute; top: 0; bottom: 0; left: 50%; width: 100vw; margin-left: -50vw;
+  z-index: -1; overflow: hidden; pointer-events: none;
+  background: #070C28;
+  container-type: size;
+}
+.pvp-frame {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 100cqw; height: 56.25cqw; min-width: 177.7778cqh; min-height: 100cqh;
+  opacity: 0; transition: opacity 1.2s var(--ease, ease);
+}
+.pvp-bg.ready .pvp-frame { opacity: .85; }
+.pvp-frame > div, .pvp-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+.pvp-bg::after {
+  content: ""; position: absolute; inset: 0;
+  background:
+    linear-gradient(90deg, rgba(5,10,30,.94) 0%, rgba(5,10,30,.82) 34%, rgba(5,10,30,.5) 66%, rgba(5,10,30,.42) 100%),
+    linear-gradient(180deg, var(--bg) 0%, rgba(5,10,30,.2) 16%, rgba(5,10,30,.2) 82%, var(--bg) 100%);
+}
+@supports not (width: 1cqw) {
+  .pvp-frame { width: 100vw; height: 56.25vw; min-width: 177.7778vh; min-height: 100%; }
+}
+@media (max-width: 900px) {
+  .pvp-bg.ready .pvp-frame { opacity: .7; }
+  .pvp-bg::after { background: linear-gradient(180deg, var(--bg) 0%, rgba(5,10,30,.72) 18%, rgba(5,10,30,.72) 80%, var(--bg) 100%); }
+}
