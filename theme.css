@@ -64,7 +64,7 @@ h3 { font-family: var(--body); font-weight: 900; text-transform: uppercase; lett
 .hero-grid { display: grid; grid-template-columns: minmax(0, 40rem); align-items: center; min-height: 430px; }
 .hero { position: relative; isolation: isolate; }
 .hero::before, .hero::after { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 100vw; margin-left: -50vw; z-index: -1; pointer-events: none; }
-.hero::before { background: #0A1245 url(hero-bg.jpg) right center / cover no-repeat; image-rendering: pixelated; }
+.hero::before { background: #0A1245 url(hero-bg.jpg) center top / cover no-repeat; }
 .hero::after { background: linear-gradient(90deg, rgba(8,12,48,.92) 0%, rgba(8,12,48,.78) 30%, rgba(8,12,48,.12) 58%, rgba(8,12,48,0) 74%), linear-gradient(180deg, rgba(8,12,48,.55) 0%, rgba(8,12,48,0) 22%, rgba(8,12,48,0) 78%, rgba(8,12,48,.95) 100%); }
 html, body { overflow-x: clip; }
 @media (max-width: 900px) { .hero { padding-top: 120px; } .hero::before { background-position: 85% center; } .hero::after { background: linear-gradient(180deg, rgba(8,12,48,.6), rgba(8,12,48,.82)); } }
