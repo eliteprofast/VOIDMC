@@ -27,7 +27,7 @@ const STAFF_WEBHOOK = process.env.DISCORD_STAFF_WEBHOOK_URL || "";
 const TRUST_PROXY = !!process.env.TRUST_PROXY;
 
 const TYPES = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".jpg": "image/jpeg", ".png": "image/png", ".svg": "image/svg+xml" };
-const SAFE = ["index.html", "leaderboard.html", "lb.js", "login.html", "vote.html", "apply.html", "admin.html", "style.css", "theme.css", "logo.svg", "favicon-32.png", "config.js", "bg.js", "main.js", "ui.js", "auth.js", "chat.js", "chatmd.js", "chat.html", "reveal.js", "gallery.js", "store.js", "apply.js", "admin.js", "sanctuary.jpg", "hero-bg.jpg"];
+const SAFE = ["index.html", "leaderboard.html", "lb.js", "login.html", "vote.html", "apply.html", "admin.html", "style.css", "theme.css", "logo.svg", "favicon-32.png", "config.js", "bg.js", "main.js", "ui.js", "auth.js", "chat.js", "chatmd.js", "chat.html", "reveal.js", "gallery.js", "store.js", "pvp-bg.js", "apply.js", "admin.js", "sanctuary.jpg", "hero-bg.jpg"];
 const PUBLIC_FILES = ["login.html", "style.css", "theme.css", "logo.svg", "favicon-32.png", "config.js", "bg.js", "ui.js", "auth.js", "sanctuary.jpg"]; // everything else needs a login
 
 // ---------- database (data.json) ----------

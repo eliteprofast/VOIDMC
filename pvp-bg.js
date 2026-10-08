@@ -8,6 +8,11 @@
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   if (navigator.connection && navigator.connection.saveData) return;
 
+  // YouTube turns away embeds that have no real origin to check (error 153), which is every
+  // page opened straight off disk as a file:// URL. Served over http the reel plays; opened
+  // off disk the still backdrop stands in, rather than YouTube's error panel.
+  if (location.protocol !== "http:" && location.protocol !== "https:") return;
+
   // a different clip opens each visit; the rest of the reel follows and then it loops,
   // and the rotation keeps a clip from playing straight into itself
   const start = Math.floor(Math.random() * IDS.length);
@@ -16,10 +21,9 @@
   const params = new URLSearchParams({
     autoplay: "1", mute: "1", controls: "0", loop: "1",
     playlist: order.slice(1).concat(order[0]).join(","),
-    playsinline: "1", rel: "0", modestbranding: "1", disablekb: "1", fs: "0",
-    iv_load_policy: "3", cc_load_policy: "0", enablejsapi: "1"
+    playsinline: "1", rel: "0", disablekb: "1", iv_load_policy: "3",
+    enablejsapi: "1", origin: location.origin
   });
-  if (location.protocol === "http:" || location.protocol === "https:") params.set("origin", location.origin);
 
   let frame = null;
 
@@ -39,8 +43,8 @@
 
   function reveal() { wrap.classList.add("ready"); }
 
-  // enablejsapi lets us pause over postMessage without pulling in the API script;
-  // if the player ignores it the clip simply keeps playing, which is harmless
+  // enablejsapi lets us pause over postMessage without pulling in the API script; if the
+  // player ignores the message the clip simply keeps playing, which is harmless
   function cmd(func) {
     if (!frame || !frame.contentWindow) return;
     try {

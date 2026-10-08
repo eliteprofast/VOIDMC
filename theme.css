@@ -270,6 +270,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue); }
    Full-bleed like the hero, cropped to cover the section, and dimmed hard on the left so
    the headings keep their contrast. The still navy wash shows until a clip actually plays. */
 #players { position: relative; isolation: isolate; }
+/* the footage behind them is live, so the headings carry their own shadow */
+#players .head h2, #players .head .kicker, #players .head .note, #players .head .sub { text-shadow: 2px 2px 0 rgba(0,0,0,.6); }
 .pvp-bg {
   position: absolute; top: 0; bottom: 0; left: 50%; width: 100vw; margin-left: -50vw;
   z-index: -1; overflow: hidden; pointer-events: none;
@@ -277,22 +279,24 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue); }
   container-type: size;
 }
 .pvp-frame {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  position: absolute; top: 50%; left: 50%;
+  /* scaled past the edges so the in-game HUD and scoreboard crop out of frame */
+  transform: translate(-50%, -50%) scale(1.32);
   width: 100cqw; height: 56.25cqw; min-width: 177.7778cqh; min-height: 100cqh;
   opacity: 0; transition: opacity 1.2s var(--ease, ease);
 }
-.pvp-bg.ready .pvp-frame { opacity: .85; }
+.pvp-bg.ready .pvp-frame { opacity: 1; }
 .pvp-frame > div, .pvp-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
 .pvp-bg::after {
   content: ""; position: absolute; inset: 0;
   background:
-    linear-gradient(90deg, rgba(5,10,30,.94) 0%, rgba(5,10,30,.82) 34%, rgba(5,10,30,.5) 66%, rgba(5,10,30,.42) 100%),
-    linear-gradient(180deg, var(--bg) 0%, rgba(5,10,30,.2) 16%, rgba(5,10,30,.2) 82%, var(--bg) 100%);
+    linear-gradient(90deg, rgba(5,10,30,.9) 0%, rgba(5,10,30,.68) 34%, rgba(5,10,30,.3) 64%, rgba(5,10,30,.22) 100%),
+    linear-gradient(180deg, var(--bg) 0%, rgba(5,10,30,.1) 13%, rgba(5,10,30,.1) 87%, var(--bg) 100%);
 }
 @supports not (width: 1cqw) {
   .pvp-frame { width: 100vw; height: 56.25vw; min-width: 177.7778vh; min-height: 100%; }
 }
 @media (max-width: 900px) {
-  .pvp-bg.ready .pvp-frame { opacity: .7; }
-  .pvp-bg::after { background: linear-gradient(180deg, var(--bg) 0%, rgba(5,10,30,.72) 18%, rgba(5,10,30,.72) 80%, var(--bg) 100%); }
+  .pvp-bg.ready .pvp-frame { opacity: .9; }
+  .pvp-bg::after { background: linear-gradient(180deg, var(--bg) 0%, rgba(5,10,30,.62) 16%, rgba(5,10,30,.62) 82%, var(--bg) 100%); }
 }
